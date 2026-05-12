@@ -188,13 +188,11 @@ button{cursor:pointer;}
 @keyframes conf-fall{to{transform:translateY(110vh) rotate(720deg);opacity:0;}}
 /* SHAKE */
 @keyframes war-shake{0%,100%{transform:translateX(0);}15%{transform:translateX(-12px);}30%{transform:translateX(12px);}45%{transform:translateX(-8px);}60%{transform:translateX(8px);}75%{transform:translateX(-4px);}90%{transform:translateX(4px);}}
-/* DARK SOULS ASSASSINATION */
+/* DARK SOULS OVERLAY (암살 + 게임오버 공용) */
 #ds-overlay{position:fixed;inset:0;z-index:9800;display:none;flex-direction:column;align-items:center;justify-content:center;background:#000;pointer-events:none;}
-#ds-overlay.active{display:flex;}
+#ds-overlay.active{display:flex;pointer-events:all;}
 @keyframes ds-fade-in{0%{opacity:0;letter-spacing:40px;}60%{opacity:1;letter-spacing:12px;}100%{opacity:1;letter-spacing:12px;}}
-@keyframes ds-fade-out{0%{opacity:1;}100%{opacity:0;}}
 @keyframes ds-sub-in{0%{opacity:0;transform:translateY(14px);}100%{opacity:1;transform:translateY(0);}}
-@keyframes ds-bg-in{0%{background:rgba(0,0,0,0);}40%{background:rgba(0,0,0,0.6);}100%{background:rgba(0,0,0,0.92);}}
 #ds-main-text{font-size:clamp(52px,10vw,100px);font-weight:900;color:#b30000;letter-spacing:12px;font-family:'Georgia',serif;text-shadow:0 0 60px #ff000088,0 0 120px #8b000066,0 2px 0 #000;animation:ds-fade-in 1.8s cubic-bezier(.4,0,.2,1) forwards;text-transform:uppercase;}
 #ds-victim-wrap{margin-top:28px;text-align:center;animation:ds-sub-in .7s ease 2.2s both;}
 #ds-victim-title{font-size:22px;color:#cc4444;letter-spacing:3px;font-family:'Georgia',serif;text-shadow:0 0 20px #ff000066;}
@@ -202,6 +200,8 @@ button{cursor:pointer;}
 #ds-victim-country{font-size:18px;color:rgba(255,255,255,.45);margin-top:10px;letter-spacing:2px;}
 #ds-line{width:0;height:2px;background:linear-gradient(90deg,transparent,#b30000,transparent);margin:18px auto;animation:ds-line-expand .6s ease 1.9s forwards;}
 @keyframes ds-line-expand{0%{width:0;}100%{width:340px;}}
+#ds-restart{display:none;margin-top:38px;padding:13px 38px;background:transparent;border:2px solid rgba(255,255,255,.35);border-radius:6px;color:rgba(255,255,255,.7);font-size:15px;font-family:'Georgia',serif;letter-spacing:2px;cursor:pointer;animation:ds-sub-in .6s ease 3.2s both;transition:border-color .2s,color .2s;}
+#ds-restart:hover{border-color:#b30000;color:#fff;}
 /* MAP */
 .map-svg{width:100%;max-width:180px;height:130px;display:block;margin:0 auto;filter:drop-shadow(0 0 10px rgba(108,99,255,.4));}
 .map-svg path{fill:var(--ac);}
@@ -358,7 +358,7 @@ button{cursor:pointer;}
   </div>
 </div>
 
-<!-- DARK SOULS ASSASSINATION OVERLAY -->
+<!-- DARK SOULS OVERLAY (암살/게임오버 공용) -->
 <div id="ds-overlay">
   <div id="ds-main-text">암살 성공</div>
   <div id="ds-line"></div>
@@ -367,6 +367,7 @@ button{cursor:pointer;}
     <div id="ds-victim-name"></div>
     <div id="ds-victim-country"></div>
   </div>
+  <button id="ds-restart" onclick="location.reload()">다시 시작</button>
 </div>
 
 <!-- WAR RESULT OVERLAY -->
@@ -687,31 +688,31 @@ function showWarDefeat(c){
   setTimeout(()=>{document.body.style.animation='';},700);
   setTimeout(()=>{ov.style.display='none';},5000);
 }
-function showAssassination(c,title,name){
+function showDarkSouls({mainText,subTitle,subName,subCountry,permanent=false}){
   const ov=document.getElementById('ds-overlay');
-  document.getElementById('ds-victim-title').textContent=title;
-  document.getElementById('ds-victim-name').textContent=name;
-  document.getElementById('ds-victim-country').textContent=`${c.flag} ${c.name}`;
-  // reset animation by replacing node
-  const mt=document.getElementById('ds-main-text');
-  const cl=mt.cloneNode(true); mt.replaceWith(cl);
-  const ln=document.getElementById('ds-line');
-  const lc=ln.cloneNode(true); ln.replaceWith(lc);
-  const vw=document.getElementById('ds-victim-wrap');
-  const vc=vw.cloneNode(true);
-  vc.querySelector('#ds-victim-title').textContent=title;
-  vc.querySelector('#ds-victim-name').textContent=name;
-  vc.querySelector('#ds-victim-country').textContent=`${c.flag} ${c.name}`;
-  vw.replaceWith(vc);
-  ov.style.opacity='1'; ov.classList.add('active');
+  const rst=document.getElementById('ds-restart');
+  rst.style.display=permanent?'block':'none';
+  // reset animations by cloning
+  ['ds-main-text','ds-line','ds-victim-wrap'].forEach(id=>{
+    const el=document.getElementById(id);
+    const cl=el.cloneNode(true); el.replaceWith(cl);
+  });
+  document.getElementById('ds-main-text').textContent=mainText;
+  document.getElementById('ds-victim-title').textContent=subTitle||'';
+  document.getElementById('ds-victim-name').textContent=subName||'';
+  document.getElementById('ds-victim-country').textContent=subCountry||'';
+  ov.style.opacity='1'; ov.style.transition=''; ov.classList.add('active');
   document.body.style.animation='war-shake .6s ease';
   setTimeout(()=>{document.body.style.animation='';},600);
-  // fade out
-  setTimeout(()=>{
-    ov.style.transition='opacity 1.2s ease';
-    ov.style.opacity='0';
-    setTimeout(()=>{ov.classList.remove('active');ov.style.opacity='1';ov.style.transition='';},1200);
-  },5500);
+  if(!permanent){
+    setTimeout(()=>{
+      ov.style.transition='opacity 1.2s ease'; ov.style.opacity='0';
+      setTimeout(()=>{ov.classList.remove('active');ov.style.opacity='1';ov.style.transition='';},1200);
+    },5500);
+  }
+}
+function showAssassination(c,title,name){
+  showDarkSouls({mainText:'암살 성공',subTitle:title,subName:name,subCountry:`${c.flag} ${c.name}`,permanent:false});
 }
 function spawnConfetti(){
   const colors=['#ffd700','#00e676','#6c63ff','#ff6b6b','#4ecdc4','#45b7d1','#ffeaa7','#a29bfe'];
@@ -1479,29 +1480,33 @@ function renderRelOver(){
 function endGame(reason){
   G.gameOver=true;
   const p=P(),rank=[...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.isPlayer)+1;
-  const mt=document.getElementById('mt'),md=document.getElementById('md'),ms=document.getElementById('ms'),mr=document.getElementById('mr'),mc=document.getElementById('mc');
+  renderAll();
   if(reason==='protest'){
-    mt.textContent='💔 탄핵!'; mt.style.color='var(--re)';
-    md.textContent=`시민 지지율이 ${G.approval}%까지 추락했습니다. 대규모 시위 끝에 탄핵 가결.`;
-    ms.textContent=fG(p.gdp); ms.style.color='var(--re)';
-    mr.textContent=`📉 탄핵 당시 ${rank}위`;
-    mc.textContent='물가·실업률·성장률 균형을 맞추고 시민의 목소리를 들어야 했습니다.';
+    showDarkSouls({
+      mainText:'탄핵',
+      subTitle:`지지율 ${G.approval}%`,
+      subName:'대규모 시위 끝에 탄핵 가결',
+      subCountry:`GDP 순위 ${rank}위 기록`,
+      permanent:true
+    });
   } else if(reason==='election'){
-    mt.textContent='🗳️ 선거 패배!'; mt.style.color='var(--re)';
-    md.textContent=`지지율 ${G.approval}% — 야당에게 정권을 내줬습니다. 4년마다 선거가 있습니다.`;
-    ms.textContent=fG(p.gdp); ms.style.color='var(--re)';
-    mr.textContent=`Y${Math.ceil(G.turn/4)} 선거 패배 · ${rank}위`;
-    mc.textContent='선거에서 이기려면 지지율을 45% 이상으로 유지해야 합니다.';
+    showDarkSouls({
+      mainText:'선거 패배',
+      subTitle:`지지율 ${G.approval}%`,
+      subName:'야당에게 정권을 내줬습니다',
+      subCountry:`Y${Math.ceil(G.turn/4)} · ${rank}위 마감`,
+      permanent:true
+    });
   } else {
-    const rn=['','🥇 GDP 1위!','🥈 2위','🥉 3위','4위','5위','꼴찌...'];
+    const rn=['','🥇 GDP 1위','🥈 2위','🥉 3위','4위','5위','꼴찌'];
+    const mt=document.getElementById('mt'),md=document.getElementById('md'),ms=document.getElementById('ms'),mr=document.getElementById('mr'),mc=document.getElementById('mc');
     const cm=['','경제 대통령! 세계를 이끄는 강국이 되었습니다!','아깝네요! 조금만 더!','선전했습니다!','중위권입니다.','아쉬운 결과.','경제 위기. 다시 도전!'];
     mt.textContent='📊 최종 결과'; mt.style.color='var(--go)';
-    md.textContent=`20분기 운영 완료 · 최종 지지율: ${G.approval}% · 전쟁 승리: ${AI().filter(c=>c.mood<-50&&c.relation==='neutral').length}회`;
+    md.textContent=`20분기 운영 완료 · 최종 지지율: ${G.approval}%`;
     ms.textContent=fG(p.gdp); ms.style.color='var(--ac)';
-    mr.textContent=rn[rank]; mc.textContent=cm[rank];
+    mr.textContent=rn[rank]||''; mc.textContent=cm[rank]||'';
+    document.getElementById('modal').classList.add('open');
   }
-  renderAll();
-  document.getElementById('modal').classList.add('open');
 }
 
 // ══════════════════════════════════════════════════════
