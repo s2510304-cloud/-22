@@ -362,6 +362,10 @@ button{cursor:pointer;}
 <div class="page" id="page-diplo">
   <div class="dpg">
     <div>
+      <div class="pnl" id="pnl-proposals" style="display:none">
+        <div class="ph"><h3>📨 상대국 제안 <span id="proposal-badge" style="background:var(--re);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span></h3></div>
+        <div class="pb" id="pending-proposals"></div>
+      </div>
       <div class="pnl">
         <div class="ph"><h3>🤝 외교 & ⚔️ 전쟁</h3><span style="font-size:10px;color:var(--mu)">관계: 중립→긴장→관세전쟁→군사전쟁</span></div>
         <div class="pb" id="dcards"></div>
@@ -625,6 +629,7 @@ function initGame(pid,mode){
     election:{next:16},
     climate:{temp:.8,rain:58,poll:20,disaster:null,disTurns:0,log:[]},
     spyAgents:3,spyLog:[],spyCI:15,spyBoost:0,
+    pendingProposals:[],
     warPremium:1,envMult:{oil:1,wheat:1,agri:1,steel:1,semi:1,car:1,pharma:1,rare:1},
     countries:CTPL.map(c=>({
       ...c,
@@ -899,6 +904,7 @@ function nextQ(){
   updateMarket();
   if(G.spyBoost>0){G.spyBoost--;P().gro+=.4;}
   aiSpyAttack();
+  aiActiveActions();
   recalcApproval();
   if(G.turn>=G.election.next&&!G.gameOver){doElection();if(G.gameOver)return;}
   if(G.approval<=20){endGame('protest');return;}
@@ -1222,6 +1228,166 @@ function aiSpyAttack(){
 // ══════════════════════════════════════════════════════
 //  RENDER
 // ══════════════════════════════════════════════════════
+//  AI ACTIVE ACTIONS
+// ══════════════════════════════════════════════════════
+function aiActiveActions(){
+  const p=P();
+  const playerRank=[...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.isPlayer)+1;
+
+  AI().forEach(c=>{
+    if(c.relation==='military_war') return; // 이미 전쟁 중이면 스킵
+    const roll=Math.random();
+    const gdpRatio=p.gdp/(c.gdp||1);
+
+    // ── 우호적 행동 ──────────────────────────────────
+    // FTA 제안 (mood > 50, 중립 상태, 15% 확률)
+    if(c.mood>50 && c.relation==='neutral' && roll<0.15){
+      if(!G.pendingProposals.find(x=>x.cid===c.id&&x.type==='fta')){
+        G.pendingProposals.push({type:'fta',cid:c.id,turn:G.turn});
+        addReaction(c,'fta_proposal',`${c.name}이(가) FTA를 제안했습니다. 외교 패널에서 수락 여부를 결정하세요.`);
+        logDiplo(`📨 ${c.flag} ${c.name}이 FTA를 제안했습니다!`,'good');
+        toast(`📨 ${c.flag} ${c.name}이 FTA를 제안!`,'good');
+      }
+      return;
+    }
+
+    // 원조 제공 (mood > 75, 8% 확률) - 예산 지원
+    if(c.mood>75 && roll<0.08){
+      const aid=Math.round(30+Math.random()*50);
+      p.bud+=aid;
+      addReaction(c,'aid',`${c.name}이(가) $${aid}억 규모의 경제 지원을 제공했습니다.`);
+      logDiplo(`💰 ${c.flag} ${c.name}이 $${aid}억 경제 원조 제공`,'good');
+      toast(`💰 ${c.flag} ${c.name}이 $${aid}억 원조!`,'good');
+      return;
+    }
+
+    // 기술 협력 (FTA 체결 국가, 10% 확률)
+    if(c.relation==='deal' && roll<0.10){
+      p.gro+=0.3;
+      addReaction(c,'tech',`${c.name}과의 기술 협력이 성과를 내고 있습니다. 성장률 +0.3%.`);
+      logDiplo(`🔬 ${c.flag} ${c.name} 기술 협력 — 성장률 +0.3%`,'good');
+      return;
+    }
+
+    // ── 경고 및 압박 행동 ────────────────────────────
+    // 관세 인상 경고 (mood < -20, 중립/FTA, 12% 확률)
+    if(c.mood<-20 && (c.relation==='neutral'||c.relation==='deal') && roll<0.12){
+      addReaction(c,'warn',`현 상황이 지속되면 관세 인상을 검토할 것입니다.`);
+      logDiplo(`⚠️ ${c.flag} ${c.name} 경고: 관세 인상 검토 중`,'warn');
+      toast(`⚠️ ${c.flag} ${c.name} 관세 인상 경고!`,'warn');
+      return;
+    }
+
+    // 일방적 관세 인상 (mood < -35, 중립/FTA, 10% 확률)
+    if(c.mood<-35 && (c.relation==='neutral'||c.relation==='deal') && roll<0.10){
+      const hike=Math.round(15+Math.random()*20);
+      c.tariff=Math.min(80,(c.tariff||10)+hike);
+      if(c.relation==='deal') c.relation='tension';
+      addReaction(c,'tariff',`${c.name}이(가) 관세를 일방적으로 ${hike}% 인상했습니다. (현재 ${c.tariff}%)`);
+      logDiplo(`📈 ${c.flag} ${c.name} 관세 ${hike}% 인상 → 총 ${c.tariff}%`,'bad');
+      toast(`📈 ${c.flag} ${c.name} 관세 일방 인상!`,'bad');
+      return;
+    }
+
+    // 제재 선언 (플레이어가 1위이고 mood < -20, 8% 확률)
+    if(playerRank===1 && c.mood<-20 && roll<0.08){
+      c.mood-=10; c.tariff=Math.min(70,(c.tariff||10)+10);
+      addReaction(c,'sanction',`${c.name}이(가) 경제 패권에 반발해 부분 제재를 발동했습니다.`);
+      logDiplo(`🚫 ${c.flag} ${c.name} 패권 견제 — 부분 제재`,'bad');
+      toast(`🚫 ${c.flag} ${c.name}이 제재 발동!`,'warn');
+      return;
+    }
+
+    // 관세전쟁 격화 — 군사 위협 (mood < -55, 관세전쟁 중, 12% 확률)
+    if(c.mood<-55 && c.relation==='tariff_war' && roll<0.12){
+      G.pendingProposals.push({type:'ultimatum',cid:c.id,turn:G.turn,
+        msg:`${c.name}은(는) 관계 정상화가 없으면 군사 행동을 개시하겠다고 경고합니다.`});
+      addReaction(c,'ultimatum',`군사력 동원을 경고합니다. 즉각 관계 정상화하십시오.`);
+      logDiplo(`🗡️ ${c.flag} ${c.name} 최후통첩 — 군사 행동 경고!`,'bad');
+      toast(`🗡️ ${c.flag} ${c.name} 최후통첩!`,'bad');
+      return;
+    }
+
+    // AI 선전포고 (mood < -70, mil > 65, 관세전쟁 중, 7% 확률)
+    if(c.mood<-70 && c.mil>65 && c.relation==='tariff_war' && roll<0.07){
+      c.relation='military_war'; c.warTurns=0; c.mood=-100;
+      addReaction(c,'military_war_declared',`인내심이 한계에 달했습니다. 군사 행동을 개시합니다!`);
+      logDiplo(`🚨 ${c.flag} ${c.name}이 선전포고!`,'bad');
+      G.evLog.unshift({text:`🚨 ${c.flag} ${c.name}이 선전포고!`,type:'bad',turn:G.turn});
+      G.approval=Math.max(0,G.approval-12);
+      // 제3국 연대 (30% 확률)
+      AI().filter(x=>x.id!==c.id&&x.mood<-30&&x.relation!=='military_war').forEach(x=>{
+        if(Math.random()<0.30){
+          x.mood-=15; x.tariff=Math.min(60,(x.tariff||10)+15);
+          addReaction(x,'sanction',`${c.name}과 연대하여 압박을 강화합니다.`);
+        }
+      });
+      toast(`🚨 ${c.flag} ${c.name}이 선전포고!`,'bad');
+      return;
+    }
+
+    // 연합 형성 (플레이어가 2개국 이상과 전쟁, 중립국이 편승, 10% 확률)
+    const warCount=AI().filter(x=>x.relation==='military_war').length;
+    if(warCount>=2 && (c.relation==='neutral'||c.relation==='tension') && c.mood<-10 && roll<0.10){
+      c.relation='tariff_war'; c.tariff=50; c.mood-=20;
+      addReaction(c,'coalition',`다국 분쟁 상황에서 ${c.name}이(가) 반(反) 플레이어 연대에 합류했습니다.`);
+      logDiplo(`⚔️ ${c.flag} ${c.name} 반플레이어 연합 합류!`,'bad');
+      toast(`⚔️ ${c.flag} ${c.name} 연합 합류!`,'bad');
+    }
+  });
+
+  // ── AI ↔ AI 상호작용 ────────────────────────────────
+  const ais=AI();
+  if(ais.length>=2 && Math.random()<0.4){
+    const a=ais[Math.floor(Math.random()*ais.length)];
+    const b=ais.filter(x=>x.id!==a.id)[Math.floor(Math.random()*(ais.length-1))];
+    if(a&&b){
+      // AI끼리 무역 → 쌍방 GDP 소폭 증가
+      const boost=0.2+Math.random()*0.4;
+      a.gro+=boost; b.gro+=boost;
+      if(Math.random()<0.25)
+        G.evLog.unshift({text:`🤝 ${a.flag}${a.name}↔${b.flag}${b.name} 교역 확대 (쌍방 GDP 상승)`,type:'info',turn:G.turn});
+    }
+  }
+}
+
+function acceptProposal(idx){
+  const prop=G.pendingProposals[idx];
+  if(!prop)return;
+  const c=C(prop.cid);
+  G.pendingProposals.splice(idx,1);
+  if(prop.type==='fta'){
+    c.relation='deal'; c.tariff=0; c.mood+=25;
+    addReaction(c,'fta',`FTA 수락에 감사합니다. 교역을 강화하겠습니다.`);
+    logDiplo(`✅ ${c.flag} ${c.name} FTA 제안 수락!`,'good');
+    toast(`✅ ${c.flag} ${c.name}과 FTA 체결!`,'good');
+  }
+  renderAll();
+}
+function rejectProposal(idx){
+  const prop=G.pendingProposals[idx];
+  if(!prop)return;
+  const c=C(prop.cid);
+  G.pendingProposals.splice(idx,1);
+  if(prop.type==='fta'){
+    c.mood-=20;
+    addReaction(c,'reject',`FTA 거절은 유감입니다. 관계를 재검토하겠습니다.`);
+    logDiplo(`❌ ${c.flag} ${c.name} FTA 제안 거절`,'warn');
+    toast(`❌ ${c.flag} ${c.name} FTA 거절`,'warn');
+  } else if(prop.type==='ultimatum'){
+    // 최후통첩 무시 → 즉각 전쟁
+    c.relation='military_war'; c.warTurns=0; c.mood=-100;
+    addReaction(c,'military_war_declared',`최후통첩을 무시했습니다. 즉각 군사 행동을 개시합니다!`);
+    logDiplo(`🚨 ${c.flag} ${c.name} 최후통첩 거절 — 전쟁 발발!`,'bad');
+    toast(`🚨 ${c.flag} 전쟁 발발!`,'bad');
+  }
+  renderAll();
+}
+function dismissProposal(idx){
+  G.pendingProposals.splice(idx,1); renderAll();
+}
+
+// ══════════════════════════════════════════════════════
 const fmt=n=>{const a=Math.abs(n);if(a>=1e8)return(n/1e8).toFixed(1)+'억';if(a>=1e4)return(n/1e4).toFixed(1)+'만';return Math.round(n).toLocaleString();};
 const fG=n=>n>=10000?'$'+(n/10000).toFixed(1)+'조':'$'+Math.round(n)+'억';
 
@@ -1289,7 +1455,7 @@ function renderAll(){
   renderHUD(); renderKPIs(); renderPolicies(); renderEvLog();
   renderWarBanner(); renderCitizens(); renderMap(); renderLB(); renderMySummary();
   renderTradeTabs(); renderTradeTable(); renderInventory(); renderFX(); renderTradeStats();
-  renderDCards(); renderRLog(); renderDLog(); renderRelOver();
+  renderPendingProposals(); renderDCards(); renderRLog(); renderDLog(); renderRelOver();
   renderClimate('climate-dash'); renderClimate('climate-pnl');
   renderDisBox(); renderElecBox(); renderSpy();
 }
@@ -1458,6 +1624,40 @@ function renderFX(){
 function renderTradeStats(){
   const el=document.getElementById('tradestats');if(!el)return;
   el.innerHTML=[...G.countries].sort((a,b)=>Math.abs(b.bal)-Math.abs(a.bal)).map(c=>`<div style="display:flex;gap:7px;align-items:center;padding:4px 0;border-bottom:1px solid var(--bd)"><span>${c.flag}</span><span style="flex:1;font-size:12px">${c.name}</span><span style="font-size:12px;font-weight:700;color:${c.bal>=0?'var(--gr)':'var(--re)'}">${c.bal>=0?'+':''}${Math.round(c.bal)}억$</span></div>`).join('');
+}
+
+function renderPendingProposals(){
+  const el=document.getElementById('pending-proposals');if(!el)return;
+  const pnl=document.getElementById('pnl-proposals');
+  const badge=document.getElementById('proposal-badge');
+  if(!G.pendingProposals||!G.pendingProposals.length){
+    el.innerHTML='';if(pnl)pnl.style.display='none';return;
+  }
+  if(pnl)pnl.style.display='block';
+  if(badge)badge.textContent=G.pendingProposals.length;
+  el.innerHTML=G.pendingProposals.map((prop,i)=>{
+    const c=C(prop.cid);if(!c)return'';
+    if(prop.type==='fta') return `
+      <div style="background:rgba(0,230,118,.08);border:1px solid var(--go);border-radius:9px;padding:12px;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--go);margin-bottom:4px">📨 FTA 제안</div>
+        <div style="font-size:13px;margin-bottom:8px">${c.flag} <strong>${c.name}</strong>이(가) 자유무역협정을 제안했습니다.<br><span style="font-size:11px;color:var(--mu)">수락 시 관세 0% · 교역 확대 · 감정 +25</span></div>
+        <div style="display:flex;gap:6px">
+          <button onclick="acceptProposal(${i})" style="flex:1;padding:6px;background:var(--go);color:#000;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">✅ 수락</button>
+          <button onclick="rejectProposal(${i})" style="flex:1;padding:6px;background:transparent;color:var(--re);border:1px solid var(--re);border-radius:6px;font-size:12px;cursor:pointer">❌ 거절</button>
+        </div>
+      </div>`;
+    if(prop.type==='ultimatum') return `
+      <div style="background:rgba(255,68,68,.1);border:1px solid var(--re);border-radius:9px;padding:12px;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--re);margin-bottom:4px">🗡️ 최후통첩</div>
+        <div style="font-size:13px;margin-bottom:4px">${c.flag} <strong>${c.name}</strong></div>
+        <div style="font-size:11px;color:var(--mu);margin-bottom:8px">${prop.msg||'즉각 관계 정상화를 요구합니다.'}</div>
+        <div style="display:flex;gap:6px">
+          <button onclick="rejectProposal(${i})" style="flex:1;padding:6px;background:var(--re);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">⚔️ 무시 (전쟁)</button>
+          <button onclick="dismissProposal(${i})" style="flex:1;padding:6px;background:transparent;color:var(--wa);border:1px solid var(--wa);border-radius:6px;font-size:12px;cursor:pointer">🕊️ 협상 시도</button>
+        </div>
+      </div>`;
+    return'';
+  }).join('');
 }
 
 // DIPLOMACY
