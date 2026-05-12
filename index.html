@@ -314,6 +314,10 @@ button{cursor:pointer;}
         <div class="pb"><div class="pg" id="pgrid"></div></div>
       </div>
       <div class="pnl">
+        <div class="ph"><h3>⚡ 국가권한 발동</h3><span style="font-size:10px;color:var(--mu)">계엄·비상령·국유화 등 특수 권한</span></div>
+        <div class="pb"><div class="pg" id="state-powers"></div></div>
+      </div>
+      <div class="pnl">
         <div class="ph"><h3>📰 경제·전쟁 이벤트</h3></div>
         <div class="pb" id="elog" style="max-height:250px;overflow-y:auto;"></div>
       </div>
@@ -628,6 +632,111 @@ const CIVIL_WAR_STAGES=[
   {icon:'💀', name:'내전 전면화',    desc:'국토 분열. 국제사회 개입 촉구.',                  fx:{gro:-3.5,bud:-500, app:-25, mil:-15}},
 ];
 
+const STATE_POWERS=[
+  {
+    id:'martial_law', icon:'🪖', name:'계엄령',
+    desc:'군을 국내에 배치해 치안을 장악. 내전·테러 진압력 대폭 강화.',
+    cost:50, cooldown:8, duration:4,
+    fx:{mil:+15, app:-18, gro:-0.5},
+    available:(G,p)=>true,
+    onActivate:(G,p)=>{
+      p.mil+=15;
+      G.approval=Math.max(0,G.approval-18);
+      if(G.civilWar.active){G.civilWar.stage=Math.max(0,G.civilWar.stage-1);G.civilWar.turns+=2;}
+      G.terrorCooldown+=3;
+      AI().forEach(c=>{c.mood-=20;if(c.relation==='deal'&&Math.random()<0.3){c.relation='tension';addReaction(c,'sanction','계엄 선포는 민주주의 후퇴입니다. 관계를 재검토합니다.');}});
+      logDiplo('🪖 계엄령 선포 — 국제사회 강력 비판','bad');
+    },
+    perTurn:(G,p)=>{p.gro-=0.5;G.spyCI=Math.min(100,G.spyCI+5);},
+    label:'비상 통제 중'
+  },
+  {
+    id:'emergency_economy', icon:'💴', name:'비상경제령',
+    desc:'긴급 예산 투입·가격 통제로 경제 위기 일시 봉합. 물가 부작용.',
+    cost:0, cooldown:6, duration:1,
+    fx:{bud:+600, infl:+3, app:-6},
+    available:(G,p)=>p.bud<-50||p.infl>7,
+    onActivate:(G,p)=>{p.bud+=600;p.infl+=3;G.approval=Math.max(0,G.approval-6);},
+    perTurn:null, label:''
+  },
+  {
+    id:'conscription', icon:'⚔️', name:'징집령',
+    desc:'전시 징집으로 병력 긴급 증강. 생산인력 감소로 성장 타격.',
+    cost:150, cooldown:4, duration:1,
+    fx:{mil:+30, unemp:-3, gro:-1.0, app:-8},
+    available:(G,p)=>AI().some(c=>c.relation==='military_war')||G.civilWar.active,
+    onActivate:(G,p)=>{p.mil+=30;p.unemp=Math.max(0.5,p.unemp-3);p.gro-=1.0;G.approval=Math.max(0,G.approval-8);},
+    perTurn:null, label:''
+  },
+  {
+    id:'media_control', icon:'📺', name:'언론통제',
+    desc:'부정적 보도를 차단해 지지율 일시 부양. 국제 비판 초래.',
+    cost:80, cooldown:5, duration:3,
+    fx:{app:+18},
+    available:(G,p)=>true,
+    onActivate:(G,p)=>{G.approval=Math.min(100,G.approval+18);AI().forEach(c=>{c.mood-=12;});logDiplo('📺 언론통제 — 국제 언론자유 단체 규탄','warn');},
+    perTurn:(G,p)=>{G.approval=Math.min(100,G.approval+4);},
+    label:'언론 통제 중'
+  },
+  {
+    id:'currency_control', icon:'💱', name:'외환통제',
+    desc:'자본 유출 차단·환율 고정. 무역량 감소 부작용.',
+    cost:0, cooldown:5, duration:4,
+    fx:{bal:+150, gro:-0.4},
+    available:(G,p)=>p.bal<-150,
+    onActivate:(G,p)=>{p.bal+=150;p.gro-=0.4;},
+    perTurn:(G,p)=>{p.bal+=40;p.gro-=0.2;},
+    label:'외환 통제 중'
+  },
+  {
+    id:'mobilization', icon:'🏭', name:'국가총동원령',
+    desc:'전시 경제 체제 전환. 군수산업 풀가동으로 군사력·성장 동시 상승.',
+    cost:300, cooldown:8, duration:5,
+    fx:{mil:+20, gro:+1.5, app:-10},
+    available:(G,p)=>AI().filter(c=>c.relation==='military_war').length>=1,
+    onActivate:(G,p)=>{p.mil+=20;p.gro+=1.5;G.approval=Math.max(0,G.approval-10);},
+    perTurn:(G,p)=>{p.mil+=5;p.gro+=0.8;},
+    label:'전시 동원 중'
+  },
+  {
+    id:'amnesty', icon:'🕊️', name:'특별사면·화해령',
+    desc:'반정부 세력 사면·대화로 내전·시위 진정. 지지율 급회복.',
+    cost:120, cooldown:6, duration:1,
+    fx:{app:+25},
+    available:(G,p)=>G.civilWar.active||G.approval<40,
+    onActivate:(G,p)=>{G.approval=Math.min(100,G.approval+25);if(G.civilWar.active){G.civilWar.stage=Math.max(0,G.civilWar.stage-1);G.civilWar.turns=Math.max(1,G.civilWar.turns-2);}},
+    perTurn:null, label:''
+  },
+  {
+    id:'nationalize', icon:'🏛️', name:'핵심산업 국유화',
+    desc:'주요 기업 국유화로 긴급 세수 확보. 시장 신뢰 하락.',
+    cost:0, cooldown:8, duration:1,
+    fx:{bud:+350, gro:-1.5, app:-8},
+    available:(G,p)=>true,
+    onActivate:(G,p)=>{p.bud+=350;p.gro-=1.5;G.approval=Math.max(0,G.approval-8);AI().forEach(c=>{c.mood-=15;});logDiplo('🏛️ 핵심산업 국유화 — 외국 투자자 이탈 우려','warn');},
+    perTurn:null, label:''
+  },
+  {
+    id:'anti_terror', icon:'🛡️', name:'테러방지 비상법',
+    desc:'강력한 보안 조치로 테러 발생 확률 대폭 억제.',
+    cost:80, cooldown:6, duration:5,
+    fx:{app:-5, mil:+5},
+    available:(G,p)=>true,
+    onActivate:(G,p)=>{G.terrorCooldown+=5;p.mil+=5;G.approval=Math.max(0,G.approval-5);},
+    perTurn:(G,p)=>{G.terrorCooldown=Math.max(G.terrorCooldown,1);},
+    label:'테러방지법 시행'
+  },
+  {
+    id:'emergency_cabinet', icon:'🏢', name:'비상내각 구성',
+    desc:'위기 전문가 내각 출범. 즉시 정책 포인트 추가 제공.',
+    cost:60, cooldown:4, duration:1,
+    fx:{pp:+3, app:+8},
+    available:(G,p)=>G.approval<55||G.civilWar.active,
+    onActivate:(G,p)=>{G.pp+=3;G.approval=Math.min(100,G.approval+8);},
+    perTurn:null, label:''
+  },
+];
+
 // ══════════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════════
@@ -646,6 +755,8 @@ function initGame(pid,mode){
     pendingProposals:[],
     civilWar:{active:false,stage:0,turns:0},
     terrorCooldown:0,
+    powerCooldowns:{},
+    activePowers:[],
     warPremium:1,envMult:{oil:1,wheat:1,agri:1,steel:1,semi:1,car:1,pharma:1,rare:1},
     countries:CTPL.map(c=>({
       ...c,
@@ -916,6 +1027,7 @@ function nextQ(){
     c.prices[g.id]=Math.max(Math.round(g.base*.5),Math.round(c.prices[g.id]*(.95+Math.random()*.1)));
   }));
 
+  applyActivePowers();
   doClimate();
   doTerror();
   doCivilWar(); if(G.gameOver)return;
@@ -1367,6 +1479,76 @@ function aiSpyAttack(){
 // ══════════════════════════════════════════════════════
 //  RENDER
 // ══════════════════════════════════════════════════════
+//  STATE POWERS
+// ══════════════════════════════════════════════════════
+function usePower(id){
+  const pw=STATE_POWERS.find(p=>p.id===id);if(!pw)return;
+  const p=P();
+  if((G.powerCooldowns[id]||0)>0){toast(`⏳ ${pw.name} 재사용 대기 중 (${G.powerCooldowns[id]}분기)`, 'warn');return;}
+  if(!pw.available(G,p)){toast(`🚫 ${pw.name} 발동 조건 미충족`,'bad');return;}
+  if(p.bud<pw.cost){toast(`예산 부족 ($${pw.cost}억 필요)`,'bad');return;}
+  p.bud-=pw.cost;
+  pw.onActivate(G,p);
+  if(pw.duration>1){
+    G.activePowers=G.activePowers.filter(a=>a.id!==id);
+    G.activePowers.push({id,turnsLeft:pw.duration-1});
+  }
+  G.powerCooldowns[id]=pw.cooldown;
+  G.evLog.unshift({text:`${pw.icon} [국가권한] ${pw.name} 발동`,type:'warn',turn:G.turn});
+  toast(`${pw.icon} ${pw.name} 발동!`,'warn');
+  renderAll();
+}
+
+function applyActivePowers(){
+  const p=P();
+  G.activePowers=G.activePowers.filter(ap=>{
+    const pw=STATE_POWERS.find(x=>x.id===ap.id);
+    if(!pw)return false;
+    if(pw.perTurn)pw.perTurn(G,p);
+    ap.turnsLeft--;
+    if(ap.turnsLeft<=0){
+      G.evLog.unshift({text:`${pw.icon} ${pw.name} 효과 종료`,type:'info',turn:G.turn});
+      return false;
+    }
+    return true;
+  });
+  // 쿨다운 감소
+  Object.keys(G.powerCooldowns).forEach(k=>{if(G.powerCooldowns[k]>0)G.powerCooldowns[k]--;});
+}
+
+function renderStatePowers(){
+  const el=document.getElementById('state-powers');if(!el)return;
+  const p=P();
+  el.innerHTML=STATE_POWERS.map(pw=>{
+    const cd=G.powerCooldowns[pw.id]||0;
+    const active=G.activePowers.find(a=>a.id===pw.id);
+    const avail=pw.available(G,p);
+    const canUse=cd===0&&avail&&p.bud>=pw.cost&&!active;
+    let statusBadge='';
+    if(active)statusBadge=`<span style="background:rgba(255,200,0,.25);color:#ffd700;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px">활성 ${active.turnsLeft}턴</span>`;
+    else if(cd>0)statusBadge=`<span style="background:rgba(150,150,150,.15);color:var(--mu);border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px">재사용 ${cd}분기</span>`;
+    else if(!avail)statusBadge=`<span style="background:rgba(255,68,68,.12);color:var(--re);border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px">조건 미충족</span>`;
+    // 효과 태그 생성
+    const tags=[];
+    if(pw.fx.app)tags.push(`지지율 ${pw.fx.app>0?'+':''}${pw.fx.app}%`);
+    if(pw.fx.mil)tags.push(`군사력 ${pw.fx.mil>0?'+':''}${pw.fx.mil}`);
+    if(pw.fx.bud)tags.push(`예산 ${pw.fx.bud>0?'+':''}${pw.fx.bud}억`);
+    if(pw.fx.gro)tags.push(`성장 ${pw.fx.gro>0?'+':''}${pw.fx.gro}%`);
+    if(pw.fx.pp)tags.push(`정책PT ${pw.fx.pp>0?'+':''}${pw.fx.pp}`);
+    return`<div class="pc" style="border-color:${active?'#ffd700':canUse?'var(--bd)':'rgba(100,100,100,.3)'};opacity:${canUse||active?1:0.6}">
+      <div class="pi">${pw.icon}</div>
+      <div class="pn">${pw.name}${statusBadge}</div>
+      <div class="pd">${pw.desc}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin:5px 0">${tags.map(t=>`<span style="background:var(--p2);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--mu)">${t}</span>`).join('')}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <span style="font-size:10px;color:var(--mu)">${pw.cost>0?`💰 $${pw.cost}억`:'무비용'} · 지속 ${pw.duration}분기 · 쿨다운 ${pw.cooldown}분기</span>
+        <button onclick="usePower('${pw.id}')" ${canUse?'':'disabled'} style="padding:5px 12px;font-size:11px;font-weight:700;border-radius:6px;border:none;background:${canUse?'var(--wa)':'var(--bd)'};color:${canUse?'#000':'var(--mu)'};cursor:${canUse?'pointer':'default'}">발동</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
 //  AI ACTIVE ACTIONS
 // ══════════════════════════════════════════════════════
 function aiActiveActions(){
@@ -1594,6 +1776,7 @@ function renderAll(){
   renderHUD(); renderKPIs(); renderPolicies(); renderEvLog();
   renderWarBanner(); renderCitizens(); renderMap(); renderLB(); renderMySummary();
   renderTradeTabs(); renderTradeTable(); renderInventory(); renderFX(); renderTradeStats();
+  renderStatePowers();
   renderPendingProposals(); renderDCards(); renderRLog(); renderDLog(); renderRelOver();
   renderClimate('climate-dash'); renderClimate('climate-pnl');
   renderDisBox(); renderElecBox(); renderSpy();
