@@ -614,6 +614,20 @@ const DISASTERS=[
   {id:'wildfire', icon:'🔥', name:'대형 산불',     desc:'오염 누적으로 산불 확산. 농업·관광 피해.',            priceFx:{agri:.2},            fx:{gro:-.4,bud:-80},         appFx:-4,  dur:2, condType:'poll', condGt:true, condVal:65},
 ];
 
+const TERROR_EVENTS=[
+  {id:'bombing',    icon:'💥', name:'폭탄 테러',         desc:'수도 중심부 폭발. 시민 공포 확산.',          fx:{gro:-.8, bud:-120, app:-10, mil:-3}},
+  {id:'cyber',      icon:'💻', name:'사이버 테러',        desc:'핵심 인프라 해킹. 통신·금융망 마비.',        fx:{gro:-1.2,bud:-80,  app:-7,  mil:0}},
+  {id:'hostage',    icon:'🔫', name:'외교관 납치',        desc:'해외 외교관 피납. 국제 긴장 고조.',          fx:{gro:-.4, bud:-60,  app:-8,  mil:0}},
+  {id:'infra',      icon:'🚇', name:'기반시설 공격',      desc:'교통·전력망 공격. 물류 대란 발생.',          fx:{gro:-1.0,bud:-150, app:-9,  mil:0}},
+  {id:'assassination_attempt',icon:'🗡️',name:'요인 암살 시도','desc':'고위 인사 암살 미수. 비상경계령 발령.',  fx:{gro:-.3, bud:-40,  app:-12, mil:2}},
+  {id:'chemical',   icon:'☢️', name:'화학 테러 의심',     desc:'독성 물질 살포 의심 신고. 사회 혼란.',       fx:{gro:-.6, bud:-90,  app:-11, mil:1}},
+];
+const CIVIL_WAR_STAGES=[
+  {icon:'🔥', name:'대규모 폭동',    desc:'시위대가 도심을 장악. 경찰력으로 진압 한계.',      fx:{gro:-1.5,bud:-200, app:-15, mil:-5}},
+  {icon:'⚔️', name:'무장 반란',      desc:'일부 군 세력 이탈. 정부군과 교전 발생.',          fx:{gro:-2.5,bud:-350, app:-20, mil:-10}},
+  {icon:'💀', name:'내전 전면화',    desc:'국토 분열. 국제사회 개입 촉구.',                  fx:{gro:-3.5,bud:-500, app:-25, mil:-15}},
+];
+
 // ══════════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════════
@@ -630,6 +644,8 @@ function initGame(pid,mode){
     climate:{temp:.8,rain:58,poll:20,disaster:null,disTurns:0,log:[]},
     spyAgents:3,spyLog:[],spyCI:15,spyBoost:0,
     pendingProposals:[],
+    civilWar:{active:false,stage:0,turns:0},
+    terrorCooldown:0,
     warPremium:1,envMult:{oil:1,wheat:1,agri:1,steel:1,semi:1,car:1,pharma:1,rare:1},
     countries:CTPL.map(c=>({
       ...c,
@@ -901,6 +917,8 @@ function nextQ(){
   }));
 
   doClimate();
+  doTerror();
+  doCivilWar(); if(G.gameOver)return;
   updateMarket();
   if(G.spyBoost>0){G.spyBoost--;P().gro+=.4;}
   aiSpyAttack();
@@ -1080,6 +1098,127 @@ function doElection(){
   G.evLog.unshift({text:`🗳️ 선거 승리! 지지율 ${G.approval}% — 재선 성공. 정책 포인트 +1.`,type:'good',turn:G.turn});
   toast(`🗳️ 선거 승리! 재선 성공!`,'good');
   G.election.next=G.turn+16;
+}
+
+// ══════════════════════════════════════════════════════
+//  TERROR & CIVIL WAR
+// ══════════════════════════════════════════════════════
+function doTerror(){
+  const p=P();
+  if(G.terrorCooldown>0){G.terrorCooldown--;return;}
+
+  // ── 플레이어 국가 테러 ──────────────────────────────
+  // 전쟁 중이거나 지지율 낮으면 확률 증가
+  const warCount=AI().filter(c=>c.relation==='military_war').length;
+  const basePct=0.12 + warCount*0.06 + Math.max(0,(40-G.approval)/200);
+  if(Math.random()<basePct){
+    const ev=TERROR_EVENTS[Math.floor(Math.random()*TERROR_EVENTS.length)];
+    p.gro+=ev.fx.gro; p.bud+=ev.fx.bud;
+    p.mil=Math.max(0,p.mil+(ev.fx.mil||0));
+    G.approval=Math.max(0,G.approval+ev.fx.app);
+    G.terrorCooldown=2; // 2분기 쿨다운
+    G.evLog.unshift({text:`🚨 ${ev.icon} ${ev.name} — ${ev.desc}`,type:'bad',turn:G.turn});
+    G.climate.log.unshift({text:`${ev.icon} ${ev.name} — ${ev.desc}`,turn:G.turn});
+    if(G.climate.log.length>15)G.climate.log.pop();
+    showTerrorAlert(ev);
+    // 적대국 중 하나가 배후로 의심 → 관계 악화
+    const suspect=AI().filter(c=>c.relation==='tariff_war'||c.mood<-40);
+    if(suspect.length&&Math.random()<0.4){
+      const s=suspect[Math.floor(Math.random()*suspect.length)];
+      s.mood-=10;
+      addReaction(s,'terror_suspect',`${ev.name} 배후로 의심받고 있습니다.`);
+      logDiplo(`🔍 ${s.flag} ${s.name}이 ${ev.name} 배후로 지목됨`,'warn');
+    }
+  }
+
+  // ── AI 국가 테러 (방치 시 국제 파급) ──────────────
+  AI().filter(c=>Math.random()<0.06).forEach(c=>{
+    const ev=TERROR_EVENTS[Math.floor(Math.random()*TERROR_EVENTS.length)];
+    c.gro+=ev.fx.gro*0.7; c.bud+=ev.fx.bud*0.5;
+    c.mood-=5;
+    G.evLog.unshift({text:`${c.flag} ${ev.icon} ${c.name}에서 ${ev.name} 발생`,type:'warn',turn:G.turn});
+    // 국제 유가/원자재 소폭 충격
+    if(ev.id==='infra'||ev.id==='bombing')
+      G.countries.forEach(x=>{x.prices.oil=Math.round(x.prices.oil*1.04);});
+  });
+}
+
+function doCivilWar(){
+  const p=P();
+  const cw=G.civilWar;
+
+  // 내전 진행 중
+  if(cw.active){
+    cw.turns--;
+    const stage=CIVIL_WAR_STAGES[Math.min(cw.stage,2)];
+    p.gro+=stage.fx.gro; p.bud+=stage.fx.bud;
+    p.mil=Math.max(0,p.mil+stage.fx.mil);
+    G.approval=Math.max(0,G.approval+stage.fx.app);
+    G.evLog.unshift({text:`${stage.icon} [내전 ${cw.stage+1}단계] ${stage.name} 지속 중`,type:'bad',turn:G.turn});
+    // 단계 악화
+    if(cw.turns%2===0&&cw.stage<2) cw.stage++;
+    // 진압 성공 판정 (지지율+군사력 기반)
+    const suppressChance=(p.mil/200)+(G.approval/300);
+    if(Math.random()<suppressChance||cw.turns<=0){
+      cw.active=false; cw.stage=0; cw.turns=0;
+      const penalty=Math.round(200+Math.random()*300);
+      p.bud-=penalty;
+      G.approval=Math.max(0,G.approval-5);
+      G.evLog.unshift({text:`🕊️ 내전 진압 완료. 재건 비용 $${penalty}억 지출.`,type:'warn',turn:G.turn});
+      toast(`🕊️ 내전 진압 완료. $${penalty}억 지출.`,'warn');
+      // 제3국 반응
+      AI().forEach(c=>{c.mood-=8;});
+    }
+    // 내전 중 게임오버 (지지율 0 + 군사력 10 이하)
+    if(G.approval<=5&&p.mil<=10){endGame('civilwar');return;}
+    return;
+  }
+
+  // 내전 발생 판정
+  const warCount=AI().filter(c=>c.relation==='military_war').length;
+  const trigger=G.approval<32&&(p.unemp>12||p.infl>9||warCount>=2);
+  if(trigger&&Math.random()<0.18){
+    cw.active=true; cw.stage=0; cw.turns=6;
+    G.evLog.unshift({text:`🔥 내전 발발! 시민 무장 세력이 수도를 위협합니다.`,type:'bad',turn:G.turn});
+    G.climate.log.unshift({text:`🔥 내전 발발 — 사회 붕괴 위기`,turn:G.turn});
+    showDarkSouls({
+      mainText:'내전 발발',
+      subTitle:`지지율 ${G.approval}% · 실업 ${p.unemp.toFixed(1)}%`,
+      subName:'무장 반란 세력이 수도를 위협합니다',
+      subCountry:'즉각 안정화 정책이 필요합니다',
+      permanent:false
+    });
+    // 외국이 내정 불안 틈타 압박
+    AI().filter(c=>c.mood<-10).forEach(c=>{
+      c.mood-=15; c.tariff=Math.min(70,(c.tariff||10)+10);
+      if(Math.random()<0.3)addReaction(c,'sanction','내전 상황을 이용해 압박을 강화합니다.');
+    });
+    toast(`🔥 내전 발발!`,'bad');
+  }
+}
+
+function showTerrorAlert(ev){
+  const ov=document.getElementById('ds-overlay');
+  const rst=document.getElementById('ds-restart');
+  rst.style.display='none';
+  ['ds-main-text','ds-line','ds-victim-wrap'].forEach(id=>{
+    const el=document.getElementById(id);const cl=el.cloneNode(true);el.replaceWith(cl);
+  });
+  document.getElementById('ds-main-text').textContent=ev.name;
+  document.getElementById('ds-main-text').style.fontSize='clamp(36px,7vw,72px)';
+  document.getElementById('ds-victim-title').textContent=ev.icon+' 테러 발생';
+  document.getElementById('ds-victim-name').textContent=ev.desc;
+  document.getElementById('ds-victim-country').textContent=`예산 $${Math.abs(ev.fx.bud)}억 손실 · 지지율 ${ev.fx.app}%`;
+  ov.style.opacity='1';ov.style.transition='';ov.classList.add('active');
+  document.body.style.animation='war-shake .5s ease';
+  setTimeout(()=>{document.body.style.animation='';},500);
+  setTimeout(()=>{
+    ov.style.transition='opacity 1s ease';ov.style.opacity='0';
+    setTimeout(()=>{
+      ov.classList.remove('active');ov.style.opacity='1';ov.style.transition='';
+      document.getElementById('ds-main-text').style.fontSize='';
+    },1000);
+  },4000);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1501,9 +1640,20 @@ function renderEvLog(){
 function renderWarBanner(){
   const wars=AI().filter(c=>c.relation==='military_war');
   const el=document.getElementById('war-banner');
-  if(!wars.length){el.style.display='none';return;}
+  const cw=G.civilWar;
+  const cwHtml=cw&&cw.active?`
+    <div class="war-banner" style="border-color:rgba(255,140,0,.5);background:rgba(255,100,0,.1)">
+      <h4 style="color:#ff8c00">${CIVIL_WAR_STAGES[Math.min(cw.stage,2)].icon} 내전 ${cw.stage+1}단계 — ${CIVIL_WAR_STAGES[Math.min(cw.stage,2)].name} (${cw.turns}턴 남음)</h4>
+      <div class="war-info">
+        <div class="war-stat"><div style="font-size:10px;color:var(--mu)">지지율</div><div class="ws-v" style="color:var(--re)">${G.approval}%</div></div>
+        <div class="war-stat"><div style="font-size:10px;color:var(--mu)">군사력</div><div class="ws-v">${Math.round(P().mil)}</div></div>
+        <div class="war-stat"><div style="font-size:10px;color:var(--mu)">내전 단계</div><div class="ws-v" style="color:#ff8c00">${cw.stage+1}/3</div></div>
+      </div>
+      <div style="font-size:11px;color:var(--mu);margin-top:4px">💡 지지율 상승 정책과 군사력 유지로 진압 확률을 높이세요.</div>
+    </div>`:'';
+  if(!wars.length&&!(cw&&cw.active)){el.style.display='none';return;}
   el.style.display='block';
-  el.innerHTML=wars.map(c=>`
+  el.innerHTML=cwHtml+wars.map(c=>`
     <div class="war-banner">
       <h4>⚔️ 전쟁 중: ${c.flag} ${c.name} (${c.warTurns}턴째)</h4>
       <div class="war-info">
@@ -1737,6 +1887,14 @@ function endGame(reason){
       subTitle:`지지율 ${G.approval}%`,
       subName:'야당에게 정권을 내줬습니다',
       subCountry:`Y${Math.ceil(G.turn/4)} · ${rank}위 마감`,
+      permanent:true
+    });
+  } else if(reason==='civilwar'){
+    showDarkSouls({
+      mainText:'국가 붕괴',
+      subTitle:'내전 — 정부군 완전 와해',
+      subName:'수도가 반란군에 함락되었습니다',
+      subCountry:`지지율 ${G.approval}% · 군사력 ${Math.round(p.mil)}`,
       permanent:true
     });
   } else {
