@@ -188,6 +188,20 @@ button{cursor:pointer;}
 @keyframes conf-fall{to{transform:translateY(110vh) rotate(720deg);opacity:0;}}
 /* SHAKE */
 @keyframes war-shake{0%,100%{transform:translateX(0);}15%{transform:translateX(-12px);}30%{transform:translateX(12px);}45%{transform:translateX(-8px);}60%{transform:translateX(8px);}75%{transform:translateX(-4px);}90%{transform:translateX(4px);}}
+/* DARK SOULS ASSASSINATION */
+#ds-overlay{position:fixed;inset:0;z-index:9800;display:none;flex-direction:column;align-items:center;justify-content:center;background:#000;pointer-events:none;}
+#ds-overlay.active{display:flex;}
+@keyframes ds-fade-in{0%{opacity:0;letter-spacing:40px;}60%{opacity:1;letter-spacing:12px;}100%{opacity:1;letter-spacing:12px;}}
+@keyframes ds-fade-out{0%{opacity:1;}100%{opacity:0;}}
+@keyframes ds-sub-in{0%{opacity:0;transform:translateY(14px);}100%{opacity:1;transform:translateY(0);}}
+@keyframes ds-bg-in{0%{background:rgba(0,0,0,0);}40%{background:rgba(0,0,0,0.6);}100%{background:rgba(0,0,0,0.92);}}
+#ds-main-text{font-size:clamp(52px,10vw,100px);font-weight:900;color:#b30000;letter-spacing:12px;font-family:'Georgia',serif;text-shadow:0 0 60px #ff000088,0 0 120px #8b000066,0 2px 0 #000;animation:ds-fade-in 1.8s cubic-bezier(.4,0,.2,1) forwards;text-transform:uppercase;}
+#ds-victim-wrap{margin-top:28px;text-align:center;animation:ds-sub-in .7s ease 2.2s both;}
+#ds-victim-title{font-size:22px;color:#cc4444;letter-spacing:3px;font-family:'Georgia',serif;text-shadow:0 0 20px #ff000066;}
+#ds-victim-name{font-size:32px;font-weight:900;color:#fff;letter-spacing:2px;margin-top:6px;text-shadow:0 0 30px #ffffff55;}
+#ds-victim-country{font-size:18px;color:rgba(255,255,255,.45);margin-top:10px;letter-spacing:2px;}
+#ds-line{width:0;height:2px;background:linear-gradient(90deg,transparent,#b30000,transparent);margin:18px auto;animation:ds-line-expand .6s ease 1.9s forwards;}
+@keyframes ds-line-expand{0%{width:0;}100%{width:340px;}}
 /* MAP */
 .map-svg{width:100%;max-width:180px;height:130px;display:block;margin:0 auto;filter:drop-shadow(0 0 10px rgba(108,99,255,.4));}
 .map-svg path{fill:var(--ac);}
@@ -341,6 +355,17 @@ button{cursor:pointer;}
       <div class="pnl"><div class="ph"><h3>🌍 기후 상세</h3><span style="font-size:10px;color:var(--mu)">오염↑ → 기온↑ → 재해 위험↑</span></div><div class="pb" id="climate-pnl"></div></div>
       <div class="pnl"><div class="ph"><h3>🌪️ 재해 기록</h3></div><div class="pb"><div class="slog" id="dis-log"></div></div></div>
     </div>
+  </div>
+</div>
+
+<!-- DARK SOULS ASSASSINATION OVERLAY -->
+<div id="ds-overlay">
+  <div id="ds-main-text">암살 성공</div>
+  <div id="ds-line"></div>
+  <div id="ds-victim-wrap">
+    <div id="ds-victim-title"></div>
+    <div id="ds-victim-name"></div>
+    <div id="ds-victim-country"></div>
   </div>
 </div>
 
@@ -663,14 +688,30 @@ function showWarDefeat(c){
   setTimeout(()=>{ov.style.display='none';},5000);
 }
 function showAssassination(c,title,name){
-  const ov=document.getElementById('war-overlay');
-  ov.className='defeat';ov.style.display='flex';
-  document.getElementById('wo-icon').textContent='🗡️';
-  document.getElementById('wo-title').textContent='암살 성공';
-  document.getElementById('wo-sub').innerHTML=`${c.flag} <strong>${c.name}</strong><br><span style="font-size:20px;color:#ff6b6b">${title}</span><br><strong style="font-size:17px">${name}</strong><br><br><span style="font-size:12px;opacity:.75">국제 사회의 강력한 규탄이 예상됩니다.</span>`;
-  document.body.style.animation='war-shake .5s ease';
-  setTimeout(()=>{document.body.style.animation='';},500);
-  setTimeout(()=>{ov.style.display='none';},7000);
+  const ov=document.getElementById('ds-overlay');
+  document.getElementById('ds-victim-title').textContent=title;
+  document.getElementById('ds-victim-name').textContent=name;
+  document.getElementById('ds-victim-country').textContent=`${c.flag} ${c.name}`;
+  // reset animation by replacing node
+  const mt=document.getElementById('ds-main-text');
+  const cl=mt.cloneNode(true); mt.replaceWith(cl);
+  const ln=document.getElementById('ds-line');
+  const lc=ln.cloneNode(true); ln.replaceWith(lc);
+  const vw=document.getElementById('ds-victim-wrap');
+  const vc=vw.cloneNode(true);
+  vc.querySelector('#ds-victim-title').textContent=title;
+  vc.querySelector('#ds-victim-name').textContent=name;
+  vc.querySelector('#ds-victim-country').textContent=`${c.flag} ${c.name}`;
+  vw.replaceWith(vc);
+  ov.style.opacity='1'; ov.classList.add('active');
+  document.body.style.animation='war-shake .6s ease';
+  setTimeout(()=>{document.body.style.animation='';},600);
+  // fade out
+  setTimeout(()=>{
+    ov.style.transition='opacity 1.2s ease';
+    ov.style.opacity='0';
+    setTimeout(()=>{ov.classList.remove('active');ov.style.opacity='1';ov.style.transition='';},1200);
+  },5500);
 }
 function spawnConfetti(){
   const colors=['#ffd700','#00e676','#6c63ff','#ff6b6b','#4ecdc4','#45b7d1','#ffeaa7','#a29bfe'];
