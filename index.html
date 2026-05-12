@@ -193,6 +193,29 @@ button{cursor:pointer;}
 .map-svg path{fill:var(--ac);}
 .sel-map{width:56px;height:40px;display:block;margin:4px auto 0;}
 .sel-map path{fill:var(--ac);}
+/* CLIMATE */
+.clm-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd);font-size:12px;}
+.clm-bar{height:5px;background:var(--bd);border-radius:3px;margin:2px 0 5px;}
+.clm-fill{height:5px;border-radius:3px;transition:width .6s,background .6s;}
+.dis-box{background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.3);border-radius:9px;padding:10px 13px;margin-bottom:11px;display:none;animation:pr 1.4s infinite;}
+.dis-box h4{color:var(--re);font-size:13px;margin-bottom:3px;}
+.dis-box p{font-size:11px;color:rgba(255,180,180,.85);line-height:1.5;}
+/* ELECTION */
+.elec-box{background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.35);border-radius:9px;padding:10px 13px;margin-bottom:11px;display:none;}
+.elec-box h4{color:var(--ac);font-size:13px;margin-bottom:3px;}
+.elec-box p{font-size:11px;color:rgba(180,180,255,.8);line-height:1.5;}
+/* SPY */
+.spy-g{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.spy-card{background:var(--p2);border:1px solid var(--bd);border-radius:9px;padding:11px;}
+.spy-card h4{font-size:12px;font-weight:700;margin-bottom:2px;}
+.spy-card p{font-size:11px;color:var(--mu);margin-bottom:6px;line-height:1.4;}
+.spy-btn{width:100%;padding:5px;border-radius:6px;border:1px solid var(--bd);background:transparent;font-size:11px;font-weight:700;color:var(--tx);transition:all .15s;}
+.spy-btn:hover:not(:disabled){background:rgba(108,99,255,.15);border-color:var(--ac);color:var(--ac);}
+.spy-btn:disabled{opacity:.3;cursor:not-allowed;}
+.spy-cost{font-size:10px;color:var(--wa);margin-top:3px;}
+.slog{display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto;}
+.slog-i{background:var(--p2);border-radius:7px;padding:7px 9px;border-left:3px solid var(--gr);font-size:11px;line-height:1.5;display:flex;gap:6px;}
+.slog-i.fail{border-color:var(--re);}
 </style>
 </head>
 <body>
@@ -210,6 +233,7 @@ button{cursor:pointer;}
   <button class="ntab active" onclick="goPage('dash')">🏛 대시보드</button>
   <button class="ntab"        onclick="goPage('trade')">🌐 무역</button>
   <button class="ntab"        onclick="goPage('diplo')">🤝 외교·전쟁</button>
+  <button class="ntab"        onclick="goPage('spy')">🕵️ 첩보·환경</button>
   <div id="nr">
     <div class="hud"><span class="lb">국가</span><span class="vl" id="hn">-</span></div>
     <div class="hud"><span class="lb">GDP</span><span class="vl" id="hg" style="color:var(--go)">-</span></div>
@@ -225,6 +249,10 @@ button{cursor:pointer;}
   <div class="dg">
     <div>
       <div class="kr" id="krow"></div>
+      <!-- 선거 경고 -->
+      <div class="elec-box" id="elec-box"></div>
+      <!-- 재해 경고 -->
+      <div class="dis-box" id="dis-box"></div>
       <!-- 전쟁 배너 (전쟁 중일 때만 표시) -->
       <div id="war-banner" style="display:none"></div>
       <div class="pnl">
@@ -249,6 +277,7 @@ button{cursor:pointer;}
       <div class="pnl"><div class="ph"><h3>🗺 국가 지도</h3></div><div class="pb" style="padding:14px;text-align:center;" id="map-container"></div></div>
       <div class="pnl"><div class="ph"><h3>🏆 GDP 순위</h3></div><div class="pb" id="lb"></div></div>
       <div class="pnl"><div class="ph"><h3>📊 내 국가 요약</h3></div><div class="pb" id="mysum"></div></div>
+      <div class="pnl"><div class="ph"><h3>🌍 기후·환경</h3><span style="font-size:10px;color:var(--mu)">오염↑→기온↑→재해</span></div><div class="pb" id="climate-dash"></div></div>
     </div>
   </div>
 </div>
@@ -293,6 +322,23 @@ button{cursor:pointer;}
         <div class="pb"><div id="dlog" style="max-height:240px;overflow-y:auto;"></div></div>
       </div>
       <div class="pnl"><div class="ph"><h3>🌍 관계 현황</h3></div><div class="pb" id="relover"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SPY & ENVIRONMENT -->
+<div class="page" id="page-spy">
+  <div class="dpg">
+    <div>
+      <div class="pnl">
+        <div class="ph"><h3>🕵️ 첩보 작전 센터</h3><span style="font-size:10px;color:var(--mu)">작전 후 다음 분기 요원 복귀</span></div>
+        <div class="pb" id="spy-ops"></div>
+      </div>
+    </div>
+    <div>
+      <div class="pnl"><div class="ph"><h3>📋 작전 기록</h3></div><div class="pb"><div class="slog" id="spy-log"></div></div></div>
+      <div class="pnl"><div class="ph"><h3>🌍 기후 상세</h3><span style="font-size:10px;color:var(--mu)">오염↑ → 기온↑ → 재해 위험↑</span></div><div class="pb" id="climate-pnl"></div></div>
+      <div class="pnl"><div class="ph"><h3>🌪️ 재해 기록</h3></div><div class="pb"><div class="slog" id="dis-log"></div></div></div>
     </div>
   </div>
 </div>
@@ -436,6 +482,28 @@ const MAPS={
 };
 
 // ══════════════════════════════════════════════════════
+//  SPY & CLIMATE DATA
+// ══════════════════════════════════════════════════════
+const SPY_OPS=[
+  {id:'intel',    icon:'🔍',name:'경제 정보 수집',  desc:'대상국 경제 취약점 파악. 성장률 소폭 상승.',     cost:30, agent:0, risk:0.05, target:false},
+  {id:'steal',    icon:'💾',name:'기술 탈취',       desc:'첨단 기술 절취 → 3분기간 GDP 성장률 +0.4%.',  cost:80, agent:1, risk:0.30, target:false},
+  {id:'sabotage', icon:'💣',name:'경제 방해공작',   desc:'대상국 산업 시설 피해 → 대상국 성장 -1.5%.',  cost:60, agent:1, risk:0.25, target:true},
+  {id:'manipulate',icon:'🎭',name:'외교 공작',      desc:'대상국과의 감정 개선 +30. 관계 회복에 유리.',  cost:40, agent:0, risk:0.10, target:true},
+  {id:'counter',  icon:'🛡',name:'방첩망 강화',     desc:'적국 스파이 차단 능력 강화. CI +25.',          cost:50, agent:0, risk:0.00, target:false},
+  {id:'coup',     icon:'👑',name:'정치 공작',       desc:'대상국 내부 혼란 유발. 고위험·고수익.',        cost:150,agent:1, risk:0.50, target:true},
+];
+const DISASTERS=[
+  {id:'drought',  icon:'☀️', name:'극심한 가뭄',   desc:'강수량 부족으로 농업 붕괴. 밀·농산물 가격 폭등.',    priceFx:{wheat:.35,agri:.4},  fx:{gro:-.6,bud:-50},         appFx:-5,  dur:3, condType:'rain', condLt:true, condVal:25},
+  {id:'flood',    icon:'🌊', name:'대홍수',         desc:'폭우로 인프라 대규모 피해. 재건 예산 급증.',          priceFx:{},                   fx:{gro:-.8,bud:-180},        appFx:-7,  dur:2, condType:'rain', condGt:true, condVal:85},
+  {id:'heatwave', icon:'🌡️',name:'기록적 폭염',   desc:'폭염으로 노동 생산성 저하. 에너지 수요 폭증.',        priceFx:{oil:.15},            fx:{gro:-.5,unemp:.4},        appFx:-4,  dur:2, condType:'temp', condGt:true, condVal:2.0},
+  {id:'cold',     icon:'🌨️',name:'한파·폭설',     desc:'한파로 에너지 수요 급증. 물가·부채 상승.',            priceFx:{oil:.2},             fx:{infl:1.5,bud:-80},        appFx:-5,  dur:2, condType:'temp', condLt:true, condVal:0.0},
+  {id:'quake',    icon:'🏚️',name:'대지진',         desc:'강진 발생! 인프라 붕괴 및 막대한 복구 비용.',         priceFx:{steel:.2},           fx:{gro:-1.5,bud:-250},       appFx:-12, dur:1, prob:0.04},
+  {id:'typhoon',  icon:'🌀', name:'초강력 태풍',   desc:'항구·물류 시설 마비. 무역 수지 급락.',               priceFx:{},                   fx:{bal:-100,bud:-120},       appFx:-8,  dur:1, prob:0.03},
+  {id:'pandemic', icon:'🦠', name:'전염병 확산',   desc:'신종 전염병! 경제 활동 위축·의료비 폭증.',            priceFx:{pharma:-.15},        fx:{gro:-2.5,unemp:1.8},      appFx:-15, dur:3, prob:0.015},
+  {id:'wildfire', icon:'🔥', name:'대형 산불',     desc:'오염 누적으로 산불 확산. 농업·관광 피해.',            priceFx:{agri:.2},            fx:{gro:-.4,bud:-80},         appFx:-4,  dur:2, condType:'poll', condGt:true, condVal:65},
+];
+
+// ══════════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════════
 let G={};
@@ -447,6 +515,9 @@ function initGame(pid){
     inv:{},totExp:0,totImp:0,
     approval:65,prevApp:65,
     gameOver:false,
+    election:{next:16},
+    climate:{temp:.8,rain:58,poll:20,disaster:null,disTurns:0,log:[]},
+    spyAgents:3,spyLog:[],spyCI:15,spyBoost:0,
     countries:CTPL.map(c=>({
       ...c,
       isPlayer:c.id===pid,
@@ -689,7 +760,11 @@ function nextQ(){
     c.prices[g.id]=Math.max(Math.round(g.base*.5),Math.round(c.prices[g.id]*(.95+Math.random()*.1)));
   }));
 
+  doClimate();
+  if(G.spyBoost>0){G.spyBoost--;P().gro+=.4;}
+  aiSpyAttack();
   recalcApproval();
+  if(G.turn>=G.election.next&&!G.gameOver){doElection();if(G.gameOver)return;}
   if(G.approval<=20){endGame('protest');return;}
   if(G.approval<=30)toast(`⚠️ 지지율 ${G.approval}%! 탄핵 위기!`,'warn');
 
@@ -800,6 +875,119 @@ function normalize(cid){
 }
 
 // ══════════════════════════════════════════════════════
+//  CLIMATE & DISASTERS
+// ══════════════════════════════════════════════════════
+function doClimate(){
+  const p=P(),cl=G.climate;
+  cl.temp=Math.max(-1.5,Math.min(4,cl.temp+(cl.poll/1200)+(Math.random()-.5)*.18));
+  cl.rain=Math.max(0,Math.min(100,cl.rain+(Math.random()-.5)*14));
+  cl.poll=Math.max(0,Math.min(100,cl.poll+Math.max(0,p.gro)*.4+(Math.random()-.58)*2));
+  if(cl.disaster){
+    const d=cl.disaster; cl.disTurns--;
+    p.gro+=(d.fx.gro||0);
+    if(d.fx.bud)p.bud+=d.fx.bud*.4;
+    if(d.fx.infl)p.infl=Math.max(0,p.infl+(d.fx.infl||0)*.3);
+    if(d.fx.unemp)p.unemp=Math.max(.5,p.unemp+(d.fx.unemp||0)*.3);
+    if(d.fx.bal)p.bal+=d.fx.bal*.3;
+    G.approval=Math.max(0,G.approval+(d.appFx||0)/d.dur);
+    if(cl.disTurns<=0){
+      G.evLog.unshift({text:`✅ ${d.icon} ${d.name} 종료. 경제 회복 중.`,type:'good',turn:G.turn});
+      cl.disaster=null;
+    }
+    return;
+  }
+  // 새 재해 판정
+  for(const d of DISASTERS){
+    let hit=false;
+    if(d.prob&&Math.random()<d.prob) hit=true;
+    else if(d.condType==='rain'&&d.condLt&&cl.rain<d.condVal&&Math.random()<.35) hit=true;
+    else if(d.condType==='rain'&&d.condGt&&cl.rain>d.condVal&&Math.random()<.35) hit=true;
+    else if(d.condType==='temp'&&d.condGt&&cl.temp>d.condVal&&Math.random()<.30) hit=true;
+    else if(d.condType==='temp'&&d.condLt&&cl.temp<d.condVal&&Math.random()<.25) hit=true;
+    else if(d.condType==='poll'&&d.condGt&&cl.poll>d.condVal&&Math.random()<.28) hit=true;
+    if(hit){
+      cl.disaster=d; cl.disTurns=d.dur;
+      p.gro+=(d.fx.gro||0)*1.3;
+      if(d.fx.bud)p.bud+=d.fx.bud;
+      if(d.fx.infl)p.infl=Math.max(0,p.infl+(d.fx.infl||0));
+      if(d.fx.unemp)p.unemp=Math.max(.5,p.unemp+(d.fx.unemp||0));
+      if(d.fx.bal)p.bal+=d.fx.bal||0;
+      G.approval=Math.max(0,G.approval+(d.appFx||0));
+      if(d.priceFx)GOODS.forEach(g=>{if(d.priceFx[g.id])G.countries.forEach(c=>{c.prices[g.id]=Math.round(c.prices[g.id]*(1+(d.priceFx[g.id]||0)));});});
+      cl.log.unshift({text:`${d.icon} ${d.name} — ${d.desc}`,turn:G.turn});
+      if(cl.log.length>15)cl.log.pop();
+      G.evLog.unshift({text:`🚨 자연재해! ${d.icon} ${d.name} — ${d.desc}`,type:'bad',turn:G.turn});
+      toast(`🚨 ${d.icon} ${d.name} 발생!`,'bad');
+      break;
+    }
+  }
+  if(cl.poll>60){p.gro-=.25;G.approval=Math.max(0,G.approval-1);}
+  if(cl.temp>1.8){p.gro-=.15;}
+}
+
+// ══════════════════════════════════════════════════════
+//  ELECTION
+// ══════════════════════════════════════════════════════
+function doElection(){
+  if(G.approval<45){endGame('election');return;}
+  G.approval=Math.min(100,G.approval+5);
+  G.pp+=1;
+  G.evLog.unshift({text:`🗳️ 선거 승리! 지지율 ${G.approval}% — 재선 성공. 정책 포인트 +1.`,type:'good',turn:G.turn});
+  toast(`🗳️ 선거 승리! 재선 성공!`,'good');
+  G.election.next=G.turn+16;
+}
+
+// ══════════════════════════════════════════════════════
+//  SPY
+// ══════════════════════════════════════════════════════
+function getSpyTarget(opId){const el=document.getElementById('sel-'+opId);return el?el.value:null;}
+function spyOp(opId){
+  const op=SPY_OPS.find(o=>o.id===opId);if(!op)return;
+  const p=P(),cid=op.target?getSpyTarget(opId):null,c=cid?C(cid):null;
+  if(op.agent>0&&G.spyAgents<op.agent){toast('스파이 요원 부족','bad');return;}
+  if(p.bud<op.cost){toast(`예산 부족 ($${op.cost}억 필요)`,'bad');return;}
+  p.bud-=op.cost;
+  if(op.agent)G.spyAgents=Math.max(0,G.spyAgents-op.agent);
+  const success=Math.random()>op.risk;
+  if(!success){
+    const failMood={sabotage:-20,coup:-30,manipulate:-15,steal:-10};
+    if(c&&failMood[opId]){c.mood+=failMood[opId];addReaction(c,'tariff_war','귀국의 공작 행위를 강력 규탄합니다!');}
+    G.approval=Math.max(0,G.approval-3);
+    G.spyLog.unshift({text:`❌ [실패] ${op.icon} ${op.name}${c?' → '+c.flag+c.name:''}`,turn:G.turn,fail:true});
+    toast(`❌ ${op.name} 실패!`,'bad');
+    renderAll();return;
+  }
+  let msg='성공';
+  if(opId==='intel'){p.gro+=.3;msg='경제 취약점 파악. 성장률 +0.3%.';}
+  else if(opId==='steal'){G.spyBoost=3;p.gro+=.4;msg='기술 탈취 성공! 3분기간 성장률 +0.4%.';}
+  else if(opId==='sabotage'&&c){c.gro-=1.5;c.bud-=80;msg=`${c.flag}${c.name} 산업 시설 피해.`;}
+  else if(opId==='manipulate'&&c){c.mood=Math.min(100,c.mood+30);msg=`${c.flag}${c.name} 감정 +30.`;}
+  else if(opId==='counter'){G.spyCI=Math.min(100,G.spyCI+25);msg='방첩망 강화 완료.';}
+  else if(opId==='coup'&&c){c.gro-=3;c.bud-=200;c.mood-=40;c.unemp+=2;msg=`${c.flag}${c.name} 내부 혼란 유발!`;}
+  G.spyLog.unshift({text:`✅ [성공] ${op.icon} ${op.name} — ${msg}`,turn:G.turn,fail:false});
+  if(G.spyLog.length>20)G.spyLog.pop();
+  G.evLog.unshift({text:`🕵️ ${op.icon} ${op.name} 작전 성공`,type:'good',turn:G.turn});
+  toast(`✅ ${op.name} 성공!`,'good');
+  renderAll();
+}
+function aiSpyAttack(){
+  const p=P();
+  AI().filter(c=>c.mood<-20&&Math.random()<.07).forEach(c=>{
+    const blocked=Math.random()*100<G.spyCI;
+    if(blocked){G.evLog.unshift({text:`🛡 ${c.flag}${c.name}의 스파이를 방첩망으로 검거!`,type:'good',turn:G.turn});toast(`🛡 ${c.flag} 스파이 검거!`,'good');}
+    else{
+      const r=Math.random();let dmg='';
+      if(r<.4){p.bud-=60;dmg='재정 -$60억';}
+      else if(r<.7){p.gro-=.8;dmg='성장률 -0.8%';}
+      else{G.approval=Math.max(0,G.approval-5);dmg='지지율 -5%';}
+      G.evLog.unshift({text:`🕵️ ${c.flag}${c.name} 스파이 공작 성공! (${dmg})`,type:'bad',turn:G.turn});
+      toast(`⚠️ ${c.flag} 스파이 공작! (${dmg})`,'warn');
+    }
+  });
+  if(G.spyAgents<3)G.spyAgents=Math.min(3,G.spyAgents+1);
+}
+
+// ══════════════════════════════════════════════════════
 //  RENDER
 // ══════════════════════════════════════════════════════
 const fmt=n=>{const a=Math.abs(n);if(a>=1e8)return(n/1e8).toFixed(1)+'억';if(a>=1e4)return(n/1e4).toFixed(1)+'만';return Math.round(n).toLocaleString();};
@@ -820,11 +1008,58 @@ function renderMap(){
     ${mwars.length?`<div style="font-size:11px;color:var(--re);margin-top:6px;font-weight:700">⚔️ 전쟁 중 (${mwars.map(c=>c.flag).join(' ')})</div>`:''}`;
 }
 
+function renderClimate(elId){
+  const el=document.getElementById(elId);if(!el)return;
+  const cl=G.climate;
+  const tc=cl.temp>2?'var(--re)':cl.temp>1?'var(--wa)':cl.temp>0?'var(--ac)':'#4fc3f7';
+  const rc=cl.rain<25?'var(--re)':cl.rain>80?'#4fc3f7':cl.rain<40?'var(--wa)':'var(--gr)';
+  const pc=cl.poll>70?'var(--re)':cl.poll>50?'var(--wa)':'var(--gr)';
+  el.innerHTML=`
+    <div class="clm-row"><span style="color:var(--mu)">🌡️ 기온 이상</span><strong style="color:${tc}">${cl.temp>0?'+':''}${cl.temp.toFixed(1)}°C</strong></div>
+    <div class="clm-bar"><div class="clm-fill" style="width:${Math.max(2,Math.min(100,(cl.temp+1.5)/5.5*100))}%;background:${tc}"></div></div>
+    <div class="clm-row"><span style="color:var(--mu)">🌧️ 강수량</span><strong style="color:${rc}">${Math.round(cl.rain)}%</strong></div>
+    <div class="clm-bar"><div class="clm-fill" style="width:${cl.rain}%;background:${rc}"></div></div>
+    <div class="clm-row"><span style="color:var(--mu)">🏭 대기오염</span><strong style="color:${pc}">${Math.round(cl.poll)}%</strong></div>
+    <div class="clm-bar"><div class="clm-fill" style="width:${cl.poll}%;background:${pc}"></div></div>
+    ${cl.disaster?`<div style="margin-top:7px;padding:7px;background:rgba(255,68,68,.12);border-radius:7px;font-size:11px;color:var(--re)"><strong>${cl.disaster.icon} ${cl.disaster.name}</strong> 진행 중 (${cl.disTurns}분기 남음)<br><span style="color:var(--mu);font-size:10px">${cl.disaster.desc}</span></div>`:'<div style="margin-top:6px;font-size:11px;color:var(--gr);text-align:center">현재 재해 없음 ✅</div>'}`;
+}
+function renderDisBox(){
+  const el=document.getElementById('dis-box');if(!el)return;
+  const cl=G.climate;
+  if(cl.disaster){el.style.display='block';el.innerHTML=`<h4>${cl.disaster.icon} ${cl.disaster.name} 진행 중 (${cl.disTurns}분기 남음)</h4><p>${cl.disaster.desc}</p>`;}
+  else el.style.display='none';
+}
+function renderElecBox(){
+  const el=document.getElementById('elec-box');if(!el)return;
+  const turns=G.election.next-G.turn;
+  if(turns>4){el.style.display='none';return;}
+  el.style.display='block';
+  const warn=G.approval<50;
+  el.innerHTML=`<h4>🗳️ 선거까지 ${turns}분기 남음</h4><p style="color:${warn?'var(--re)':'inherit'}">${warn?`⚠️ 현재 지지율 ${G.approval}% — 45% 미만이면 선거 패배 (게임 오버)!`:`현재 지지율 ${G.approval}% — 안전권 유지 중`}</p>`;
+}
+function renderSpy(){
+  const el=document.getElementById('spy-ops');if(!el)return;
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-size:11px;color:var(--mu)">🕵️ 요원 <strong style="color:var(--ac)">${G.spyAgents}/3</strong> · 방첩 <strong style="color:var(--gr)">${Math.round(G.spyCI)}%</strong></span>
+    ${G.spyBoost>0?`<span style="font-size:11px;color:var(--go)">💾 기술 부스트 ${G.spyBoost}분기 남음</span>`:''}
+  </div>
+  <div class="spy-g">${SPY_OPS.map(op=>{
+    const tSel=op.target?`<select id="sel-${op.id}" style="width:100%;margin-bottom:4px;background:var(--bg);border:1px solid var(--bd);color:var(--tx);border-radius:4px;padding:2px;font-size:10px">${AI().map(c=>`<option value="${c.id}">${c.flag} ${c.name}</option>`).join('')}</select>`:'';
+    const ok=G.spyAgents>=op.agent&&P().bud>=op.cost;
+    return `<div class="spy-card"><h4>${op.icon} ${op.name}</h4><p>${op.desc}</p>${tSel}<button class="spy-btn" onclick="spyOp('${op.id}')" ${ok?'':'disabled'}>작전 실행</button><div class="spy-cost">💰 $${op.cost}억 ${op.agent?`· 요원 ${op.agent}명`:''} · 실패율 ${Math.round(op.risk*100)}%</div></div>`;
+  }).join('')}</div>`;
+  const sl=document.getElementById('spy-log');if(!sl)return;
+  sl.innerHTML=G.spyLog.length?G.spyLog.slice(0,15).map(l=>`<div class="slog-i ${l.fail?'fail':''}"><div style="flex:1">${l.text}</div><div style="font-size:10px;color:var(--mu);white-space:nowrap;margin-left:6px">Q${((l.turn-1)%4)+1}Y${Math.ceil(l.turn/4)}</div></div>`).join(''):'<p style="color:var(--mu);font-size:12px;text-align:center;padding:12px">작전 기록 없음</p>';
+  const dl=document.getElementById('dis-log');if(!dl)return;
+  dl.innerHTML=G.climate.log.length?G.climate.log.slice(0,12).map(l=>`<div class="slog-i" style="border-color:var(--re)"><div style="flex:1">${l.text}</div><div style="font-size:10px;color:var(--mu);white-space:nowrap;margin-left:6px">Q${((l.turn-1)%4)+1}Y${Math.ceil(l.turn/4)}</div></div>`).join(''):'<p style="color:var(--mu);font-size:12px;text-align:center;padding:12px">재해 기록 없음</p>';
+}
 function renderAll(){
   renderHUD(); renderKPIs(); renderPolicies(); renderEvLog();
   renderWarBanner(); renderCitizens(); renderMap(); renderLB(); renderMySummary();
   renderTradeTabs(); renderTradeTable(); renderInventory(); renderFX(); renderTradeStats();
   renderDCards(); renderRLog(); renderDLog(); renderRelOver();
+  renderClimate('climate-dash'); renderClimate('climate-pnl');
+  renderDisBox(); renderElecBox(); renderSpy();
 }
 
 function renderHUD(){
@@ -1042,6 +1277,12 @@ function endGame(reason){
     ms.textContent=fG(p.gdp); ms.style.color='var(--re)';
     mr.textContent=`📉 탄핵 당시 ${rank}위`;
     mc.textContent='물가·실업률·성장률 균형을 맞추고 시민의 목소리를 들어야 했습니다.';
+  } else if(reason==='election'){
+    mt.textContent='🗳️ 선거 패배!'; mt.style.color='var(--re)';
+    md.textContent=`지지율 ${G.approval}% — 야당에게 정권을 내줬습니다. 4년마다 선거가 있습니다.`;
+    ms.textContent=fG(p.gdp); ms.style.color='var(--re)';
+    mr.textContent=`Y${Math.ceil(G.turn/4)} 선거 패배 · ${rank}위`;
+    mc.textContent='선거에서 이기려면 지지율을 45% 이상으로 유지해야 합니다.';
   } else {
     const rn=['','🥇 GDP 1위!','🥈 2위','🥉 3위','4위','5위','꼴찌...'];
     const cm=['','경제 대통령! 세계를 이끄는 강국이 되었습니다!','아깝네요! 조금만 더!','선전했습니다!','중위권입니다.','아쉬운 결과.','경제 위기. 다시 도전!'];
@@ -1061,9 +1302,10 @@ function goPage(n){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+n).classList.add('active');
-  document.querySelectorAll('.ntab')[['dash','trade','diplo'].indexOf(n)].classList.add('active');
+  document.querySelectorAll('.ntab')[['dash','trade','diplo','spy'].indexOf(n)].classList.add('active');
   if(n==='trade'){renderTradeTabs();renderTradeTable();renderInventory();renderFX();renderTradeStats();}
   if(n==='diplo'){renderDCards();renderRLog();renderDLog();renderRelOver();}
+  if(n==='spy'){renderSpy();renderClimate('climate-pnl');}
 }
 let _tt;
 function toast(msg,type='info'){
