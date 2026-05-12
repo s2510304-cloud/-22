@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoNation — 국가 경제 전략 게임</title>
+<style>
+:root{--bg:#0b0f1c;--panel:#131929;--p2:#1a2336;--bd:#1e2d45;--ac:#6c63ff;--gr:#00e676;--re:#ff4444;--go:#ffd700;--wa:#ff9800;--tx:#dde4f0;--mu:#5a6a88;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',sans-serif;font-size:14px;}
+button{cursor:pointer;}
+/* NAV */
+#nav{background:var(--panel);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 18px;position:sticky;top:0;z-index:100;height:54px;gap:0;}
+.logo{font-size:17px;font-weight:800;color:var(--ac);margin-right:24px;white-space:nowrap;}.logo span{color:var(--go);}
+.ntab{padding:0 14px;height:54px;display:flex;align-items:center;border:none;background:transparent;color:var(--mu);font-size:13px;font-weight:600;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
+.ntab:hover{color:var(--tx);}.ntab.active{color:var(--ac);border-bottom-color:var(--ac);}
+#nr{margin-left:auto;display:flex;align-items:center;gap:16px;}
+.hud{display:flex;flex-direction:column;align-items:flex-end;}
+.hud .lb{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px;}
+.hud .vl{font-size:13px;font-weight:700;}
+#qb{background:var(--p2);border:1px solid var(--bd);padding:3px 9px;border-radius:20px;font-size:11px;color:var(--mu);}
+#app-hud{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+#app-hud .lb{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px;}
+#app-v{font-size:13px;font-weight:800;}
+#app-b{width:76px;height:5px;background:var(--bd);border-radius:3px;overflow:hidden;}
+#app-f{height:5px;border-radius:3px;transition:width .5s,background .5s;}
+#btn-nxt{background:var(--ac);color:#fff;border:none;padding:7px 15px;border-radius:8px;font-weight:700;font-size:13px;}
+#btn-nxt:hover{filter:brightness(1.15);}
+/* PAGES */
+.page{display:none;padding:14px;max-width:1440px;margin:0 auto;}.page.active{display:block;}
+.dg{display:grid;grid-template-columns:1fr 330px;gap:13px;}
+.tg{display:grid;grid-template-columns:1fr 285px;gap:13px;}
+.dpg{display:grid;grid-template-columns:1fr 340px;gap:13px;}
+/* PANEL */
+.pnl{background:var(--panel);border:1px solid var(--bd);border-radius:11px;overflow:hidden;margin-bottom:13px;}
+.ph{background:var(--p2);padding:9px 13px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--bd);}
+.ph h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ac);}
+.pb{padding:11px 13px;}
+/* KPI */
+.kr{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:13px;}
+.kpi{background:var(--p2);border:1px solid var(--bd);border-radius:9px;padding:11px;}
+.kpi .kl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;}
+.kpi .kv{font-size:19px;font-weight:800;}
+.kpi .ks{font-size:10px;margin-top:1px;}
+.kpi .kb{height:3px;background:var(--bd);border-radius:2px;margin-top:6px;}
+.kpi .kf{height:3px;border-radius:2px;transition:width .5s;}
+/* POLICY */
+.pg{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.pc{background:var(--p2);border:1px solid var(--bd);border-radius:9px;padding:10px;}
+.pc h4{font-size:12px;font-weight:700;margin-bottom:2px;}
+.pc p{font-size:11px;color:var(--mu);margin-bottom:7px;line-height:1.4;}
+.pb-btn{width:100%;padding:5px;border-radius:6px;border:1px solid var(--bd);background:transparent;font-size:11px;font-weight:700;color:var(--tx);transition:all .15s;}
+.pb-btn:hover:not(:disabled){background:var(--ac);border-color:var(--ac);color:#fff;}
+.pb-btn:disabled{opacity:.3;cursor:not-allowed;}
+.pf{font-size:10px;color:var(--mu);margin-top:3px;}
+/* CITIZEN */
+.cp{background:var(--panel);border:2px solid var(--bd);border-radius:11px;overflow:hidden;margin-bottom:13px;transition:border-color .4s,box-shadow .4s;}
+.cp.g{border-color:var(--gr);box-shadow:0 0 12px rgba(0,230,118,.14);}
+.cp.w{border-color:var(--wa);box-shadow:0 0 12px rgba(255,152,0,.14);}
+.cp.r{border-color:var(--re);box-shadow:0 0 16px rgba(255,68,68,.22);}
+@keyframes pr{0%,100%{box-shadow:0 0 0 0 rgba(255,68,68,.5);}50%{box-shadow:0 0 0 9px rgba(255,68,68,0);}}
+.cp.r{animation:pr 1.4s infinite;}
+.cph{background:var(--p2);padding:9px 13px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--bd);}
+.cph h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ac);}
+.cbadge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.cmt{display:flex;align-items:center;gap:11px;padding:11px 13px;border-bottom:1px solid var(--bd);}
+.cring{position:relative;width:58px;height:58px;flex-shrink:0;}
+.cring canvas{position:absolute;}
+.cpct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;}
+.ci .cil{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;}
+.ci .cis{font-size:15px;font-weight:800;margin-bottom:1px;}
+.ci .cit{font-size:11px;}
+.calert{display:none;background:rgba(255,68,68,.1);padding:7px 13px;font-size:11px;color:var(--re);font-weight:700;border-bottom:1px solid rgba(255,68,68,.2);}
+.calert.on{display:flex;align-items:center;gap:5px;}
+.cml{display:flex;flex-direction:column;gap:5px;padding:9px 11px;max-height:190px;overflow-y:auto;}
+.cmi{display:flex;gap:7px;background:var(--p2);border-radius:7px;padding:7px 9px;border-left:3px solid;}
+.cmi.critical{border-color:var(--re);}.cmi.warn{border-color:var(--wa);}.cmi.good{border-color:var(--gr);}
+.cmi .ico{font-size:14px;flex-shrink:0;padding-top:1px;}
+.cmi .txt{font-size:11px;line-height:1.5;}
+.cmi .sev{font-size:10px;font-weight:700;margin-top:1px;}
+.critical .sev{color:var(--re);}.warn .sev{color:var(--wa);}.good .sev{color:var(--gr);}
+/* WAR BANNER */
+.war-banner{background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.3);border-radius:9px;padding:11px 13px;margin-bottom:13px;}
+.war-banner h4{color:var(--re);font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.war-info{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
+.war-stat{background:rgba(255,68,68,.12);border-radius:6px;padding:5px 10px;font-size:11px;text-align:center;}
+.war-stat .ws-v{font-size:16px;font-weight:800;color:var(--re);}
+.war-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.wbtn{padding:5px 13px;border-radius:7px;border:1px solid var(--bd);background:transparent;font-size:11px;font-weight:700;color:var(--tx);transition:all .15s;}
+.wbtn.red:hover{background:var(--re);border-color:var(--re);color:#fff;}
+.wbtn.grn:hover{background:var(--gr);border-color:var(--gr);color:#000;}
+.wbtn.yel:hover{background:var(--wa);border-color:var(--wa);color:#000;}
+/* LEADERBOARD */
+.lbi{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd);}
+.lbi:last-child{border-bottom:none;}
+.lbi .lr{width:18px;font-size:12px;font-weight:800;text-align:center;}
+.lbi .lf{font-size:18px;}
+.lbi .li{flex:1;}.li .n{font-weight:600;font-size:12px;}.li .g{font-size:10px;color:var(--mu);}
+.lbi .lg{font-weight:700;font-size:12px;color:var(--go);}
+.lbi.me{background:rgba(108,99,255,.1);border-radius:7px;padding:6px 5px;}
+/* TRADE */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{font-size:10px;text-transform:uppercase;color:var(--mu);letter-spacing:.7px;padding:5px 6px;text-align:right;border-bottom:1px solid var(--bd);}
+.tbl th:first-child{text-align:left;}
+.tbl td{padding:8px 6px;text-align:right;border-bottom:1px solid #151e2e;vertical-align:middle;}
+.tbl td:first-child{text-align:left;}
+.tbl tr:hover{background:rgba(108,99,255,.04);}
+.cheap{color:var(--gr);font-weight:700;}.expensive{color:var(--re);font-weight:700;}
+.ti{width:46px;background:var(--bg);border:1px solid var(--bd);color:var(--tx);border-radius:4px;padding:2px 4px;text-align:center;font-size:11px;}
+.ti:focus{outline:1px solid var(--ac);}
+.bb{background:var(--gr);color:#000;border:none;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;}
+.bs{background:var(--re);color:#fff;border:none;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;}
+.bb:hover,.bs:hover{filter:brightness(.85);}
+/* DIPLO */
+.cc{background:var(--p2);border:1px solid var(--bd);border-radius:9px;padding:11px;margin-bottom:8px;transition:border-color .3s;}
+.cc.war-active{border-color:var(--re);box-shadow:0 0 10px rgba(255,68,68,.2);}
+.cc.tariff-active{border-color:var(--wa);}
+.cc.deal-active{border-color:var(--gr);}
+.cct{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
+.cf{font-size:24px;}.cin{flex:1;}.cin .cn{font-weight:700;font-size:13px;}.cin .cg{font-size:10px;color:var(--mu);}
+.cs{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+.sn{background:#1e2d45;color:var(--mu);}
+.sd{background:rgba(0,230,118,.15);color:var(--gr);}
+.st{background:rgba(255,152,0,.15);color:var(--wa);}
+.sw{background:rgba(255,68,68,.15);color:var(--re);}
+.smw{background:rgba(255,68,68,.25);color:#ff0000;animation:pr 1.2s infinite;}
+/* mood bar */
+.mood-bar{height:3px;background:var(--bd);border-radius:2px;margin:5px 0;}
+.mood-fill{height:3px;border-radius:2px;transition:width .5s,background .5s;}
+.cbtns{display:flex;gap:4px;flex-wrap:wrap;}
+.cb{padding:4px 9px;border-radius:5px;border:1px solid var(--bd);background:transparent;color:var(--tx);font-size:10px;font-weight:600;transition:all .15s;}
+.cb:hover{border-color:var(--ac);color:var(--ac);}
+.cb.d:hover{border-color:var(--re);color:var(--re);}
+.cb:disabled{opacity:.3;cursor:not-allowed;}
+/* REACTIONS LOG */
+.rv{display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;}
+.ri{display:flex;gap:8px;background:var(--p2);border-radius:7px;padding:7px 9px;}
+.ri .rf{font-size:18px;flex-shrink:0;}
+.ri .rb{flex:1;}
+.ri .rc{font-size:10px;color:var(--mu);margin-bottom:1px;}
+.ri .rm{font-size:11px;line-height:1.5;}
+/* EVENT */
+.ei{background:var(--p2);border-radius:7px;padding:7px 9px;border-left:3px solid var(--bd);font-size:12px;line-height:1.5;margin-bottom:5px;}
+.ei.good{border-color:var(--gr);}.ei.bad{border-color:var(--re);}.ei.warn{border-color:var(--wa);}.ei.info{border-color:var(--ac);}
+.eq{font-size:10px;color:var(--mu);margin-bottom:1px;}
+/* TOAST */
+#toast{position:fixed;bottom:20px;right:20px;z-index:9000;background:var(--p2);border:1px solid var(--bd);border-radius:9px;padding:10px 15px;font-size:13px;max-width:280px;transform:translateY(50px);opacity:0;transition:all .3s;pointer-events:none;}
+#toast.on{transform:translateY(0);opacity:1;}
+#toast.good{border-color:var(--gr);}#toast.bad{border-color:var(--re);}#toast.warn{border-color:var(--wa);}#toast.info{border-color:var(--ac);}
+/* MODAL */
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:8000;align-items:center;justify-content:center;}
+#modal.open{display:flex;}
+.mbox{background:var(--panel);border:1px solid var(--bd);border-radius:14px;padding:32px;max-width:440px;width:92%;text-align:center;}
+.mbox h2{font-size:24px;margin-bottom:8px;}
+.mbox .md{color:var(--mu);font-size:13px;line-height:1.6;margin-bottom:14px;}
+.mbox .ms{font-size:36px;font-weight:800;color:var(--ac);margin:8px 0;}
+.mbox .mr{font-size:18px;color:var(--go);margin-bottom:6px;}
+.mbox .mc{font-size:12px;color:var(--mu);margin-bottom:22px;}
+#mrst{background:var(--ac);color:#fff;border:none;padding:11px 30px;border-radius:9px;font-size:14px;font-weight:700;}
+/* SELECT */
+#sel{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:22px;}
+#sel h1{font-size:36px;font-weight:800;color:var(--ac);margin-bottom:4px;}
+#sel h1 span{color:var(--go);}
+#sel p{color:var(--mu);margin-bottom:26px;font-size:13px;}
+.csg{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;max-width:700px;width:100%;}
+.csc{background:var(--panel);border:2px solid var(--bd);border-radius:11px;padding:16px;text-align:center;cursor:pointer;transition:all .2s;}
+.csc:hover{border-color:var(--ac);background:var(--p2);}
+.csc .fl{font-size:36px;margin-bottom:6px;}
+.csc .cn{font-weight:700;font-size:14px;margin-bottom:2px;}
+.csc .cd{font-size:11px;color:var(--mu);line-height:1.3;}
+.csc .cb2{font-size:11px;color:var(--ac);margin-top:4px;font-weight:600;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px;}
+@media(max-width:900px){.dg,.tg,.dpg{grid-template-columns:1fr;}.kr{grid-template-columns:1fr 1fr;}.csg{grid-template-columns:1fr 1fr;}}
+/* WAR RESULT OVERLAY */
+#war-overlay{position:fixed;inset:0;z-index:9500;display:none;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;}
+#war-overlay.victory{background:rgba(0,0,0,.85);}
+#war-overlay.defeat{background:rgba(120,0,0,.8);}
+.wo-icon{font-size:88px;animation:bounce-in .6s cubic-bezier(.68,-.55,.27,1.55) forwards;}
+.wo-title{font-size:38px;font-weight:900;margin:14px 0 8px;letter-spacing:1px;}
+.wo-sub{font-size:15px;color:rgba(255,255,255,.7);text-align:center;max-width:340px;line-height:1.6;}
+.wo-skip{font-size:11px;color:rgba(255,255,255,.3);margin-top:20px;letter-spacing:.5px;}
+.victory .wo-title{color:var(--go);animation:glow-pulse 1.4s infinite;}
+.defeat .wo-title{color:var(--re);}
+@keyframes bounce-in{0%{transform:scale(0) rotate(-180deg);opacity:0;}70%{transform:scale(1.25) rotate(8deg);}100%{transform:scale(1) rotate(0);opacity:1;}}
+@keyframes glow-pulse{0%,100%{text-shadow:0 0 20px var(--go);}50%{text-shadow:0 0 60px var(--go),0 0 100px #ffec80;}}
+/* CONFETTI */
+.conf{position:fixed;top:-20px;border-radius:3px;animation:conf-fall linear forwards;pointer-events:none;z-index:9600;}
+@keyframes conf-fall{to{transform:translateY(110vh) rotate(720deg);opacity:0;}}
+/* SHAKE */
+@keyframes war-shake{0%,100%{transform:translateX(0);}15%{transform:translateX(-12px);}30%{transform:translateX(12px);}45%{transform:translateX(-8px);}60%{transform:translateX(8px);}75%{transform:translateX(-4px);}90%{transform:translateX(4px);}}
+/* MAP */
+.map-svg{width:100%;max-width:180px;height:130px;display:block;margin:0 auto;filter:drop-shadow(0 0 10px rgba(108,99,255,.4));}
+.map-svg path{fill:var(--ac);}
+.sel-map{width:56px;height:40px;display:block;margin:4px auto 0;}
+.sel-map path{fill:var(--ac);}
+</style>
+</head>
+<body>
+
+<!-- SELECT -->
+<div id="sel">
+  <h1>Eco<span>Nation</span></h1>
+  <p>나라를 선택하세요 — 경제를 키우고 외교·전쟁으로 세계를 제패하세요</p>
+  <div class="csg" id="csg"></div>
+</div>
+
+<!-- NAV -->
+<div id="nav" style="display:none">
+  <div class="logo">Eco<span>Nation</span></div>
+  <button class="ntab active" onclick="goPage('dash')">🏛 대시보드</button>
+  <button class="ntab"        onclick="goPage('trade')">🌐 무역</button>
+  <button class="ntab"        onclick="goPage('diplo')">🤝 외교·전쟁</button>
+  <div id="nr">
+    <div class="hud"><span class="lb">국가</span><span class="vl" id="hn">-</span></div>
+    <div class="hud"><span class="lb">GDP</span><span class="vl" id="hg" style="color:var(--go)">-</span></div>
+    <div class="hud"><span class="lb">재정</span><span class="vl" id="hb" style="color:var(--gr)">-</span></div>
+    <div id="app-hud"><span class="lb">시민 지지율</span><span id="app-v">65%</span><div id="app-b"><div id="app-f" style="width:65%;background:var(--gr)"></div></div></div>
+    <div id="qb">Q1 Y1 / 40분기</div>
+    <button id="btn-nxt" onclick="nextQ()">▶ 다음 분기</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dash">
+  <div class="dg">
+    <div>
+      <div class="kr" id="krow"></div>
+      <!-- 전쟁 배너 (전쟁 중일 때만 표시) -->
+      <div id="war-banner" style="display:none"></div>
+      <div class="pnl">
+        <div class="ph"><h3>📋 정책 실행</h3><span id="ppts" style="font-size:11px;color:var(--wa)">정책 포인트: 2</span></div>
+        <div class="pb"><div class="pg" id="pgrid"></div></div>
+      </div>
+      <div class="pnl">
+        <div class="ph"><h3>📰 경제·전쟁 이벤트</h3></div>
+        <div class="pb" id="elog" style="max-height:250px;overflow-y:auto;"></div>
+      </div>
+    </div>
+    <div>
+      <div class="cp" id="cpnl">
+        <div class="cph"><h3>👥 시민 민심</h3><span class="cbadge" id="cbadge">보통</span></div>
+        <div class="cmt">
+          <div class="cring"><canvas id="ccanv" width="58" height="58"></canvas><div class="cpct" id="cpct">65%</div></div>
+          <div class="ci"><div class="cil">시민 지지율</div><div class="cis" id="cis">안정</div><div class="cit" id="cit2">이전 분기 대비 -</div></div>
+        </div>
+        <div class="calert" id="calert">🚨 지지율 위험 — 계속 하락 시 탄핵!</div>
+        <div class="cml" id="cml"></div>
+      </div>
+      <div class="pnl"><div class="ph"><h3>🗺 국가 지도</h3></div><div class="pb" style="padding:14px;text-align:center;" id="map-container"></div></div>
+      <div class="pnl"><div class="ph"><h3>🏆 GDP 순위</h3></div><div class="pb" id="lb"></div></div>
+      <div class="pnl"><div class="ph"><h3>📊 내 국가 요약</h3></div><div class="pb" id="mysum"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TRADE -->
+<div class="page" id="page-trade">
+  <div class="tg">
+    <div>
+      <div class="pnl">
+        <div class="ph"><h3>🌐 품목별 무역 거래</h3><span style="font-size:10px;color:var(--mu)"><span style="color:var(--gr)">●</span>최저가 <span style="color:var(--re);margin-left:5px">●</span>최고가</span></div>
+        <div class="pb" style="padding:7px 10px;">
+          <div id="ttabs" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;"></div>
+          <table class="tbl"><thead><tr><th style="text-align:left">품목</th><th>기준가</th><th>현지가</th><th>관세</th><th>실구매가</th><th>수량</th><th>거래</th></tr></thead>
+          <tbody id="ttbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="pnl"><div class="ph"><h3>🏭 재고 창고</h3><span id="invtot" style="font-size:11px;color:var(--go)">$0</span></div><div class="pb" id="invlist"></div></div>
+      <div class="pnl"><div class="ph"><h3>💱 환율</h3></div><div class="pb" id="fxrates"></div></div>
+      <div class="pnl"><div class="ph"><h3>📦 글로벌 무역수지</h3></div><div class="pb" id="tradestats"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- DIPLOMACY -->
+<div class="page" id="page-diplo">
+  <div class="dpg">
+    <div>
+      <div class="pnl">
+        <div class="ph"><h3>🤝 외교 & ⚔️ 전쟁</h3><span style="font-size:10px;color:var(--mu)">관계: 중립→긴장→관세전쟁→군사전쟁</span></div>
+        <div class="pb" id="dcards"></div>
+      </div>
+    </div>
+    <div>
+      <div class="pnl">
+        <div class="ph"><h3>📣 각국의 반응</h3><span style="font-size:10px;color:var(--mu)">실시간 외교 반응</span></div>
+        <div class="pb"><div class="rv" id="rlog"></div></div>
+      </div>
+      <div class="pnl">
+        <div class="ph"><h3>📡 외교 이벤트 로그</h3></div>
+        <div class="pb"><div id="dlog" style="max-height:240px;overflow-y:auto;"></div></div>
+      </div>
+      <div class="pnl"><div class="ph"><h3>🌍 관계 현황</h3></div><div class="pb" id="relover"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- WAR RESULT OVERLAY -->
+<div id="war-overlay" onclick="this.style.display='none'">
+  <div class="wo-icon" id="wo-icon"></div>
+  <div class="wo-title" id="wo-title"></div>
+  <div class="wo-sub" id="wo-sub"></div>
+  <div class="wo-skip">클릭하여 닫기</div>
+</div>
+
+<div id="toast"></div>
+<div id="modal"><div class="mbox"><h2 id="mt"></h2><div class="md" id="md"></div><div class="ms" id="ms"></div><div class="mr" id="mr"></div><div class="mc" id="mc"></div><button id="mrst" onclick="location.reload()">다시 시작</button></div></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════════════════
+const CTPL=[
+  {id:'KOR',name:'대한민국',flag:'🇰🇷',gdp:1700, unemp:3.2,infl:2.1,bal:50, bud:2000, debt:50, gro:2.5,mil:45, desc:'기술 수출 강국',str:'반도체·자동차',bonus:'반도체 수출 +20%'},
+  {id:'USA',name:'미국',    flag:'🇺🇸',gdp:26000,unemp:3.8,infl:3.2,bal:-700,bud:10000,debt:120,gro:2.5,mil:95, desc:'세계 최대 경제대국',str:'금융·기술',bonus:'금융 수수료 -30%'},
+  {id:'CHN',name:'중국',   flag:'🇨🇳',gdp:18000,unemp:5.1,infl:1.8,bal:400, bud:8000, debt:78, gro:2.5,mil:85, desc:'세계의 공장',str:'제조업·희토류',bonus:'제조업 비용 -25%'},
+  {id:'JPN',name:'일본',   flag:'🇯🇵',gdp:4200, unemp:2.6,infl:2.5,bal:30,  bud:4000, debt:260,gro:2.5,mil:55, desc:'기술 제조업 강국',str:'자동차·정밀기계',bonus:'자동차 품질 +15%'},
+  {id:'DEU',name:'독일',   flag:'🇩🇪',gdp:4400, unemp:3.0,infl:2.8,bal:200, bud:4500, debt:65, gro:2.5,mil:60, desc:'유럽 최대 수출국',str:'화학·자동차',bonus:'EU 수출 무관세'},
+  {id:'BRA',name:'브라질', flag:'🇧🇷',gdp:2100, unemp:8.5,infl:4.5,bal:20,  bud:2500, debt:90, gro:2.5,mil:40, desc:'자원 풍부 신흥국',str:'농산물·철강',bonus:'농산물 비용 -40%'},
+];
+const GOODS=[
+  {id:'oil',  name:'원유',   emoji:'🛢', base:90,    unit:'배럴'},
+  {id:'wheat',name:'밀',     emoji:'🌾', base:320,   unit:'톤'},
+  {id:'steel',name:'철강',   emoji:'⚙️', base:800,   unit:'톤'},
+  {id:'semi', name:'반도체', emoji:'💾', base:5000,  unit:'개'},
+  {id:'car',  name:'자동차', emoji:'🚗', base:30000, unit:'대'},
+  {id:'pharma',name:'의약품',emoji:'💊', base:2000,  unit:'박스'},
+  {id:'rare', name:'희토류', emoji:'✨', base:1500,  unit:'kg'},
+  {id:'agri', name:'농산물', emoji:'🥬', base:200,   unit:'톤'},
+];
+const PM={
+  KOR:{oil:1.3,wheat:1.1,steel:1.0,semi:0.7, car:0.85,pharma:1.0,rare:1.2,agri:1.1},
+  USA:{oil:0.8,wheat:0.75,steel:0.9,semi:0.85,car:0.95,pharma:0.8,rare:1.1,agri:0.8},
+  CHN:{oil:0.9,wheat:0.85,steel:0.6,semi:0.9, car:1.1, pharma:0.9,rare:0.5,agri:0.9},
+  JPN:{oil:1.2,wheat:1.1, steel:0.85,semi:0.8,car:0.7, pharma:0.85,rare:1.1,agri:1.0},
+  DEU:{oil:1.1,wheat:0.9, steel:0.8,semi:0.9, car:0.75,pharma:0.75,rare:1.2,agri:0.85},
+  BRA:{oil:0.95,wheat:0.6,steel:0.7,semi:1.3, car:1.2, pharma:1.2,rare:0.9,agri:0.55},
+};
+const EVTS=[
+  {text:'🛢 중동 긴장 — 유가 급등',type:'warn',gfx:{oil:.25},gdpFx:-.5},
+  {text:'💾 AI 붐 — 반도체 수요 폭발',type:'good',gfx:{semi:.3},gdpFx:1.0},
+  {text:'🌾 이상기후 — 흉작 발생',type:'bad',gfx:{wheat:.2,agri:.15},gdpFx:-.3},
+  {text:'📈 글로벌 경기 호황',type:'good',gdpFx:1.5},
+  {text:'📉 글로벌 금융 불안',type:'bad',gdpFx:-1.0},
+  {text:'🏭 공장 파업 — 철강 공급 감소',type:'warn',gfx:{steel:.2}},
+  {text:'💊 신약 특허 만료 — 의약품 하락',type:'info',gfx:{pharma:-.15}},
+  {text:'✨ 희토류 매장지 발견',type:'info',gfx:{rare:-.2}},
+  {text:'🚗 전기차 전환 가속',type:'warn',gfx:{car:-.1}},
+  {text:'💰 외국인 투자 급증',type:'good',gdpFx:.8},
+  {text:'🏦 금융위기 징조',type:'bad',gdpFx:-1.2},
+];
+const BATTLE_WIN=[
+  {text:'⚔️ 전투 승리! 적군을 격퇴했습니다.',type:'good',gfx:+1,afk:+6,bfx:0},
+  {text:'🎯 정밀 타격 성공! 적 보급로 차단.',type:'good',gfx:+.5,afk:+4,bfx:+30},
+  {text:'🛡 방어선 사수! 영토 수호 성공.',type:'good',gfx:+.5,afk:+5,bfx:0},
+  {text:'💥 적 핵심 기지 점령!',type:'good',gfx:+1.5,afk:+8,bfx:+50},
+];
+const BATTLE_LOSE=[
+  {text:'💀 전투 패배... 전선이 후퇴했습니다.',type:'bad',gfx:-2,afk:-9,bfx:-120},
+  {text:'🔥 기지 피격! 막대한 피해 발생.',type:'bad',gfx:-1.5,afk:-7,bfx:-200},
+  {text:'📡 보급로 차단! 전선 고립.',type:'bad',gfx:-1,afk:-6,bfx:-80},
+  {text:'💣 도시 피폭 — 민간 피해 발생.',type:'bad',gfx:-2,afk:-12,bfx:-150},
+];
+const BATTLE_STALE=[
+  {text:'⛰ 전선 교착 — 변화 없음.',type:'warn',gfx:0,afk:-3,bfx:-50},
+  {text:'🕊 임시 휴전 협상 중... 결렬.',type:'warn',gfx:0,afk:-2,bfx:-30},
+];
+// 나라별 반응 메시지
+const REACT={
+  tariff_war:[
+    '보복 관세를 즉각 발동하겠습니다!',
+    '이는 명백한 경제 침략입니다. 강력 대응할 것입니다.',
+    '우리 기업과 국민이 피해를 입고 있습니다.',
+  ],
+  military_war_declared:[
+    '이 전쟁을 후회하게 될 것입니다!',
+    '우리 국민은 끝까지 싸울 것입니다.',
+    '국제사회에 이 침략을 알리겠습니다.',
+  ],
+  fta:[
+    '자유무역협정을 진심으로 환영합니다!',
+    '양국의 번영을 위한 훌륭한 결정입니다.',
+    '협력의 새 장을 열게 되어 기쁩니다.',
+  ],
+  normalize:[
+    '관계 정상화를 환영합니다. 협력을 기대합니다.',
+    '대화와 협상의 길을 선택해 주셔서 감사합니다.',
+  ],
+  devalue:[
+    '환율 조작에 강력히 항의합니다!',
+    '불공정 무역 관행에 대응 조치를 검토 중입니다.',
+    '우리도 환율 정책을 재검토할 것입니다.',
+  ],
+  war_won:[
+    '항복을 선언합니다. 평화 협정을 요청합니다...',
+    '더 이상 싸울 여력이 없습니다. 협상을 원합니다.',
+  ],
+  war_lost:[
+    '승리했습니다! 배상금을 요구합니다.',
+    '항복을 받아들입니다. 평화 조건을 제시하겠습니다.',
+  ],
+  ai_attacks:[
+    '우리의 요구가 무시되었습니다. 전쟁을 선포합니다!',
+    '외교적 해결이 불가능합니다. 군사행동을 개시합니다.',
+    '인내에도 한계가 있습니다. 선전포고합니다!',
+  ],
+  sanction:[
+    '전쟁 행위에 강력히 규탄합니다. 경제 제재에 동참합니다.',
+    '이 침략 행위를 용납할 수 없습니다.',
+  ],
+};
+const POLS=[
+  {id:'rate_up',icon:'📈',name:'금리 인상',  desc:'물가 억제, 성장 둔화',cost:1,fx:{infl:-.6,gro:-.3,bud:+20},appFx:-3},
+  {id:'rate_dn',icon:'📉',name:'금리 인하',  desc:'경기 부양, 물가 상승',cost:1,fx:{infl:+.4,gro:+.5,bud:-30},appFx:+4},
+  {id:'tax_up', icon:'💰',name:'세금 인상',  desc:'재정 확충, 소비 위축',cost:1,fx:{bud:+80,gro:-.2,unemp:+.3},appFx:-8},
+  {id:'tax_dn', icon:'🎁',name:'세금 감면',  desc:'소비 촉진, 재정 감소',cost:1,fx:{bud:-60,gro:+.4,unemp:-.2},appFx:+7},
+  {id:'welfare',icon:'🏥',name:'복지 확대',  desc:'실업 개선, 지출 증가',cost:1,fx:{unemp:-.5,bud:-100,gro:+.2},appFx:+10},
+  {id:'infra',  icon:'🏗',name:'인프라 투자',desc:'장기 성장 동력',       cost:2,fx:{gro:+.8,bud:-150,unemp:-.3},appFx:+5},
+  {id:'export', icon:'🚢',name:'수출 지원',  desc:'무역흑자 확대',       cost:1,fx:{bal:+30,bud:-80,gro:+.3},appFx:+3,reacts:'devalue'},
+  {id:'milup',  icon:'🪖',name:'군비 증강',  desc:'전쟁력 강화, 재정 소모',cost:1,fx:{bud:-120},milFx:+8,appFx:-4},
+  {id:'devalue',icon:'💱',name:'환율 조정',  desc:'수출 경쟁력, 국제 반발',cost:1,fx:{bal:+50,infl:+.4,gro:+.2},appFx:-2,reacts:'devalue'},
+];
+
+// ══════════════════════════════════════════════════════
+//  COUNTRY MAPS (simplified SVG silhouettes)
+// ══════════════════════════════════════════════════════
+const MAPS={
+  KOR:{vb:'0 0 60 100',path:'M28,4 L36,7 L44,16 L46,28 L43,40 L39,53 L35,65 L30,76 L24,76 L18,64 L14,52 L11,38 L12,24 L18,12 Z'},
+  USA:{vb:'0 0 200 110',path:'M8,34 L18,14 L38,8 L65,11 L95,8 L125,10 L150,6 L168,18 L178,32 L172,50 L158,60 L146,70 L126,76 L105,80 L82,78 L62,74 L44,68 L28,58 L12,46 Z'},
+  CHN:{vb:'0 0 180 160',path:'M24,8 L72,5 L112,12 L150,28 L164,54 L158,82 L144,108 L122,130 L98,142 L74,138 L50,120 L30,96 L16,70 L8,46 L12,26 Z'},
+  JPN:{vb:'0 0 80 200',path:'M38,8 L50,14 L55,30 L50,46 L58,62 L64,78 L60,96 L48,110 L36,116 L22,108 L16,92 L20,72 L28,56 L32,40 L28,22 Z'},
+  DEU:{vb:'0 0 100 120',path:'M30,5 L60,4 L80,14 L90,34 L86,54 L75,70 L60,82 L44,86 L26,78 L14,62 L8,44 L10,26 L20,12 Z'},
+  BRA:{vb:'0 0 200 200',path:'M55,8 L90,4 L126,14 L154,32 L168,58 L170,90 L158,120 L140,148 L112,165 L86,170 L60,158 L36,136 L18,108 L10,76 L16,48 L32,26 Z'},
+};
+
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+let G={};
+function initGame(pid){
+  G={
+    turn:1,maxTurns:40,pp:2,
+    activeTC:null,
+    evLog:[],diploLog:[],reactions:[],
+    inv:{},totExp:0,totImp:0,
+    approval:65,prevApp:65,
+    gameOver:false,
+    countries:CTPL.map(c=>({
+      ...c,
+      isPlayer:c.id===pid,
+      relation:c.id===pid?'self':'neutral',
+      tariff:c.id===pid?0:10,
+      mood:10,           // -100 ~ +100 (나에 대한 감정)
+      tensionTurns:0,    // 긴장 유지 턴
+      tariffWarTurns:0,  // 관세전쟁 유지 턴
+      warTurns:0,        // 군사전쟁 유지 턴
+      prices:Object.fromEntries(GOODS.map(g=>[g.id,Math.round(g.base*(PM[c.id]?.[g.id]||1))])),
+    })),
+  };
+  GOODS.forEach(g=>{G.inv[g.id]=0;});
+}
+const P=()=>G.countries.find(c=>c.isPlayer);
+const AI=()=>G.countries.filter(c=>!c.isPlayer);
+const C=id=>G.countries.find(c=>c.id===id);
+
+// ══════════════════════════════════════════════════════
+//  APPROVAL
+// ══════════════════════════════════════════════════════
+function recalcApproval(){
+  const p=P();
+  let s=50;
+  s+=p.gro*4;
+  if(p.unemp<2.5)s+=20;else if(p.unemp<4)s+=10;else if(p.unemp<6)s+=0;else if(p.unemp<9)s-=15;else s-=30;
+  if(p.infl<2)s+=10;else if(p.infl<3)s+=3;else if(p.infl<5)s-=10;else if(p.infl<8)s-=22;else s-=38;
+  s+=Math.min(12,Math.max(-12,p.bal/25));
+  if(p.bud<-200)s-=14;else if(p.bud<0)s-=6;else if(p.bud>400)s+=5;
+  if(p.debt>150)s-=18;else if(p.debt>100)s-=8;
+  const wars=AI().filter(c=>c.relation==='tariff_war').length;
+  const mwars=AI().filter(c=>c.relation==='military_war').length;
+  s-=wars*8; s-=mwars*15;
+  const raw=Math.max(0,Math.min(100,s));
+  G.prevApp=G.approval;
+  G.approval=Math.round(G.approval*0.35+raw*0.65);
+}
+
+function complaints(){
+  const p=P();const mwars=AI().filter(c=>c.relation==='military_war').length;const wars=AI().filter(c=>c.relation==='tariff_war').length;const list=[];
+  if(mwars>0)list.push({icon:'☠️',txt:`${mwars}개국과 군사전쟁 중! 젊은이들이 전선으로 떠납니다.`,sev:'critical',lbl:'공포'});
+  if(p.infl>=8)list.push({icon:'🛒',txt:`물가 ${p.infl.toFixed(1)}% 폭등! 장 보기가 무서워요.`,sev:'critical',lbl:'분노'});
+  else if(p.infl>=5)list.push({icon:'💸',txt:`생활물가가 계속 올라요. 월급은 그대로인데...`,sev:'warn',lbl:'불만'});
+  if(p.unemp>=10)list.push({icon:'😭',txt:`실업률 ${p.unemp.toFixed(1)}%! 일자리가 없어요.`,sev:'critical',lbl:'분노'});
+  else if(p.unemp>=7)list.push({icon:'😞',txt:`청년 취업난이 심각해요.`,sev:'warn',lbl:'불만'});
+  if(p.gro<-1)list.push({icon:'📉',txt:`경제 역성장(${p.gro.toFixed(1)}%)! 불황이에요.`,sev:'critical',lbl:'분노'});
+  else if(p.gro<0.5)list.push({icon:'😟',txt:`경제성장이 멈췄어요.`,sev:'warn',lbl:'걱정'});
+  if(p.bal<-300)list.push({icon:'⛵',txt:`무역적자 ${Math.abs(Math.round(p.bal))}억$! 국부 유출.`,sev:'critical',lbl:'분노'});
+  if(p.bud<-200)list.push({icon:'🏦',txt:`재정적자 심각. 세금 폭탄 오나요?`,sev:'critical',lbl:'분노'});
+  if(p.debt>150)list.push({icon:'💣',txt:`국가부채 ${p.debt.toFixed(0)}%! 부도 위기!`,sev:'critical',lbl:'공포'});
+  if(wars>=2)list.push({icon:'⚔️',txt:`${wars}개국과 관세전쟁! 수입품 가격 폭등.`,sev:'warn',lbl:'불만'});
+  if(list.length===0){
+    if(p.gro>=3&&p.unemp<4&&p.infl<3)list.push({icon:'😍',txt:'경제가 좋아졌어요! 감사합니다 장관님!',sev:'good',lbl:'만족'});
+    else list.push({icon:'😊',txt:'지금 경제 상황은 나쁘지 않네요.',sev:'good',lbl:'보통'});
+  }
+  return list;
+}
+
+function appLvl(v){
+  if(v>=70)return{lv:'g',color:'var(--gr)',lbl:'높음',status:'높은 지지'};
+  if(v>=50)return{lv:'',color:'var(--ac)',lbl:'보통',status:'안정적'};
+  if(v>=35)return{lv:'w',color:'var(--wa)',lbl:'위험',status:'민심 이탈 중'};
+  return{lv:'r',color:'var(--re)',lbl:'위기',status:'탄핵 위기!'};
+}
+
+// ══════════════════════════════════════════════════════
+//  REACTIONS
+// ══════════════════════════════════════════════════════
+function addReaction(country,msgKey,override){
+  const pool=REACT[msgKey]||[];
+  const msg=override||(pool.length?pool[Math.floor(Math.random()*pool.length)]:'...');
+  G.reactions.unshift({flag:country.flag,name:country.name,msg,turn:G.turn});
+  if(G.reactions.length>20)G.reactions.pop();
+}
+function logDiplo(text,type='info'){
+  G.diploLog.unshift({text,type,turn:G.turn});
+  if(G.diploLog.length>30)G.diploLog.pop();
+}
+
+// ══════════════════════════════════════════════════════
+//  WAR ANIMATIONS
+// ══════════════════════════════════════════════════════
+function showWarVictory(c){
+  const ov=document.getElementById('war-overlay');
+  ov.className='victory';ov.style.display='flex';
+  document.getElementById('wo-icon').textContent='🏆';
+  document.getElementById('wo-title').textContent='전쟁 승리!';
+  document.getElementById('wo-sub').innerHTML=`${c.flag} <strong>${c.name}</strong>에 승리했습니다!<br>배상금 $300억 수령 · 국제 위상 상승`;
+  spawnConfetti();
+  setTimeout(()=>{ov.style.display='none';},6000);
+}
+function showWarDefeat(c){
+  const ov=document.getElementById('war-overlay');
+  ov.className='defeat';ov.style.display='flex';
+  document.getElementById('wo-icon').textContent='💀';
+  document.getElementById('wo-title').textContent='전쟁 패배...';
+  document.getElementById('wo-sub').innerHTML=`${c.flag} <strong>${c.name}</strong>에 패배했습니다.<br>막대한 재정 손실 · 지지율 폭락`;
+  document.body.style.animation='war-shake .7s ease';
+  setTimeout(()=>{document.body.style.animation='';},700);
+  setTimeout(()=>{ov.style.display='none';},5000);
+}
+function spawnConfetti(){
+  const colors=['#ffd700','#00e676','#6c63ff','#ff6b6b','#4ecdc4','#45b7d1','#ffeaa7','#a29bfe'];
+  for(let i=0;i<70;i++){
+    const el=document.createElement('div');el.className='conf';
+    el.style.left=Math.random()*100+'vw';
+    el.style.background=colors[~~(Math.random()*colors.length)];
+    el.style.width=(7+Math.random()*10)+'px';el.style.height=(10+Math.random()*14)+'px';
+    el.style.borderRadius=Math.random()>.5?'50%':'3px';
+    el.style.animationDuration=(.7+Math.random()*2.2)+'s';
+    el.style.animationDelay=(Math.random()*2.5)+'s';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),5500);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  WAR SYSTEM
+// ══════════════════════════════════════════════════════
+function applyWarEffects(){
+  const p=P();
+  AI().filter(c=>c.relation==='military_war').forEach(c=>{
+    c.warTurns=(c.warTurns||0)+1;
+    // 양측 경제 피해
+    p.gro-=2.5+Math.random()*2;
+    p.bud-=200+Math.random()*100;
+    c.gro-=1.5+Math.random()*2;
+    c.bud-=120+Math.random()*80;
+    G.approval=Math.max(0,G.approval-6-Math.random()*4);
+    // 전투 이벤트
+    if(Math.random()<0.55){
+      const pStr=p.gdp/(p.gdp+c.gdp)*(p.mil/(p.mil+c.mil));
+      const r=Math.random();
+      let ev;
+      if(r<pStr*1.2){ev=BATTLE_WIN[Math.floor(Math.random()*BATTLE_WIN.length)];}
+      else if(r<0.5) {ev=BATTLE_STALE[Math.floor(Math.random()*BATTLE_STALE.length)];}
+      else           {ev=BATTLE_LOSE[Math.floor(Math.random()*BATTLE_LOSE.length)];}
+      G.evLog.unshift({...ev,text:`[${c.flag}전쟁] ${ev.text}`,turn:G.turn});
+      p.gro+=ev.gfx||0; G.approval=Math.max(0,Math.min(100,G.approval+(ev.afk||0))); p.bud+=(ev.bfx||0);
+    }
+    // 승리 조건: 전쟁 3턴 이상 + GDP 격차
+    if(c.warTurns>=3&&p.gdp>c.gdp*1.35&&Math.random()<0.4){
+      c.relation='neutral'; c.tariff=20; c.mood=-80;
+      addReaction(c,'war_won');
+      logDiplo(`🏳️ ${c.flag} ${c.name} 항복! 전쟁 종료. 배상금 수령.`,'good');
+      p.bud+=300; G.approval=Math.min(100,G.approval+15);
+      toast(`🎖 ${c.flag} ${c.name}에 승리! 배상금 수령.`,'good');
+      showWarVictory(c);
+    }
+    // 패전 조건: 지지율 급락 또는 GDP 역전
+    if(G.approval<20||(c.warTurns>=4&&p.gdp<c.gdp*0.5)){
+      c.relation='neutral'; c.tariff=30; c.mood=-20;
+      addReaction(c,'war_lost');
+      logDiplo(`😔 ${c.flag} ${c.name}에 패배. 항복 처리.`,'bad');
+      p.bud-=400; G.approval=Math.max(0,G.approval-20);
+      toast(`💔 ${c.flag} ${c.name}에 패배...`,'bad');
+      showWarDefeat(c);
+    }
+  });
+}
+
+function checkEscalation(){
+  const p=P();
+  AI().forEach(c=>{
+    if(c.relation==='tension'){
+      c.tensionTurns=(c.tensionTurns||0)+1;
+      if(c.tensionTurns>=3&&Math.random()<0.25&&c.mood<-10){
+        c.relation='tariff_war'; c.tariff=40; c.tensionTurns=0;
+        addReaction(c,'tariff_war');
+        logDiplo(`${c.flag} ${c.name}이 관세전쟁으로 격상!`,'bad');
+        toast(`${c.flag} ${c.name}이 관세전쟁 선포!`,'bad');
+      }
+    }
+    if(c.relation==='tariff_war'){
+      c.tariffWarTurns=(c.tariffWarTurns||0)+1;
+      c.mood-=5;
+      if(c.tariffWarTurns>=4&&Math.random()<0.18&&c.mood<-40){
+        c.relation='military_war'; c.warTurns=0; c.tariffWarTurns=0;
+        addReaction(c,'ai_attacks');
+        logDiplo(`⚔️ ${c.flag} ${c.name}이 군사전쟁 선포!`,'bad');
+        G.evLog.unshift({text:`🚨 ${c.flag} ${c.name}이 선전포고! 전쟁 발발!`,type:'bad',turn:G.turn});
+        G.approval=Math.max(0,G.approval-10);
+        toast(`🚨 ${c.flag} ${c.name}이 선전포고!`,'bad');
+        // 제3국 반응
+        AI().filter(x=>x.id!==c.id&&x.relation!=='military_war').forEach(x=>{
+          if(Math.random()<0.4){x.mood-=15;addReaction(x,'sanction');}
+        });
+      }
+    }
+    // AI 자체적 무드 변화
+    c.mood+=( Math.random()-.55)*3;
+    c.mood=Math.max(-100,Math.min(100,c.mood));
+    // 기분 좋은 AI가 협정 제안
+    if(c.relation==='neutral'&&c.mood>50&&Math.random()<0.15){
+      c.relation='deal'; c.tariff=0;
+      addReaction(c,'fta','먼저 자유무역협정을 제안하고 싶습니다!');
+      logDiplo(`${c.flag} ${c.name}이 FTA를 제안해왔습니다!`,'info');
+      toast(`${c.flag} ${c.name}이 FTA를 제안!`,'info');
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  NEXT QUARTER
+// ══════════════════════════════════════════════════════
+function nextQ(){
+  if(G.gameOver)return;
+  if(G.turn>=G.maxTurns){endGame('turns');return;}
+  G.turn++; G.pp=2;
+
+  // 경제 이벤트
+  if(Math.random()<.6){
+    const ev=EVTS[Math.floor(Math.random()*EVTS.length)];
+    G.evLog.unshift({...ev,turn:G.turn});
+    if(ev.gfx)GOODS.forEach(g=>{if(ev.gfx[g.id])G.countries.forEach(c=>{c.prices[g.id]=Math.max(10,Math.round(c.prices[g.id]*(1+ev.gfx[g.id])));});});
+    if(ev.gdpFx)G.countries.forEach(c=>{c.gro+=ev.gdpFx*(0.5+Math.random());});
+  }
+
+  // AI 시뮬
+  AI().forEach(c=>{
+    c.gro+=(Math.random()-.45)*1.2; c.gro=Math.max(-4,Math.min(9,c.gro));
+    c.gdp=Math.max(100,c.gdp*(1+c.gro/400));
+    c.unemp=Math.max(.5,Math.min(20,c.unemp+(Math.random()-.5)*.4));
+    c.infl=Math.max(0,Math.min(15,c.infl+(Math.random()-.5)*.3));
+    c.bal+=(Math.random()-.4)*25; c.bud+=(Math.random()-.5)*50;
+    c.debt+=Math.random()*.5;
+  });
+
+  applyWarEffects();
+  checkEscalation();
+
+  const p=P();
+  p.gro=Math.max(-5,Math.min(8,p.gro));
+  p.gdp=Math.max(100,p.gdp*(1+p.gro/400));
+  p.bal+=(G.totExp-G.totImp)/10;
+  G.totExp=0; G.totImp=0;
+  p.debt+=Math.random()*.3;
+
+  G.countries.forEach(c=>GOODS.forEach(g=>{
+    c.prices[g.id]=Math.max(Math.round(g.base*.5),Math.round(c.prices[g.id]*(.95+Math.random()*.1)));
+  }));
+
+  recalcApproval();
+  if(G.approval<=20){endGame('protest');return;}
+  if(G.approval<=30)toast(`⚠️ 지지율 ${G.approval}%! 탄핵 위기!`,'warn');
+
+  document.getElementById('qb').textContent=`Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)} / 40분기`;
+  if(G.turn>=G.maxTurns)endGame('turns');
+  else{renderAll();toast(`Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)} 시작 (${G.maxTurns-G.turn}분기 남음)`,'info');}
+}
+
+// ══════════════════════════════════════════════════════
+//  POLICY
+// ══════════════════════════════════════════════════════
+function applyPol(pol){
+  if(G.pp<pol.cost){toast('정책 포인트 부족','bad');return;}
+  G.pp-=pol.cost;
+  const p=P();const fx=pol.fx;
+  if(fx.infl!==undefined)p.infl=Math.max(0,p.infl+fx.infl);
+  if(fx.gro !==undefined)p.gro =Math.max(-5,p.gro+fx.gro);
+  if(fx.bud !==undefined)p.bud +=fx.bud;
+  if(fx.unemp!==undefined)p.unemp=Math.max(.5,p.unemp+fx.unemp);
+  if(fx.bal !==undefined)p.bal +=fx.bal;
+  if(pol.milFx)p.mil=p.mil+pol.milFx;
+  if(pol.appFx)G.approval=Math.max(0,Math.min(100,G.approval+pol.appFx));
+  // 타국 반응
+  if(pol.reacts){
+    AI().filter(()=>Math.random()<0.5).forEach(c=>{
+      c.mood-=8; addReaction(c,pol.reacts);
+    });
+  }
+  G.evLog.unshift({text:`${pol.icon} ${pol.name} 정책 시행`,type:'info',turn:G.turn});
+  toast(`${pol.icon} ${pol.name} 시행 완료`,'good');
+  renderAll();
+}
+
+// ══════════════════════════════════════════════════════
+//  TRADE
+// ══════════════════════════════════════════════════════
+function buyGood(cid,gid){
+  const qty=parseInt(document.getElementById('qty-'+gid)?.value)||1;
+  const c=C(cid),g=GOODS.find(x=>x.id===gid),p=P();
+  if(c.relation==='military_war'){toast('전쟁 중인 국가와는 거래 불가','bad');return;}
+  const cost=Math.round(c.prices[gid]*(1+(c.tariff||0)/100))*qty;
+  if(cost>p.bud){toast('예산 부족','bad');return;}
+  p.bud-=cost; G.inv[gid]=(G.inv[gid]||0)+qty;
+  G.totImp+=cost/100; p.bal-=cost/1000;
+  toast(`${g.emoji} ${g.name} ${qty}${g.unit} 수입 ($${fmt(cost)})`,'good'); renderAll();
+}
+function sellGood(gid){
+  const qty=parseInt(document.getElementById('sq-'+gid)?.value)||1;
+  if((G.inv[gid]||0)<qty){toast('재고 부족','bad');return;}
+  const g=GOODS.find(x=>x.id===gid),p=P();
+  const rev=Math.round(g.base*1.05)*qty;
+  p.bud+=rev; G.inv[gid]-=qty; G.totExp+=rev/100; p.bal+=rev/1000;
+  toast(`${g.emoji} ${g.name} ${qty}${g.unit} 수출 ($${fmt(rev)})`,'good'); renderAll();
+}
+function setTariff(cid,v){const c=C(cid);if(c)c.tariff=Math.max(0,Math.min(100,parseInt(v)||0));renderTradeTable();}
+
+// ══════════════════════════════════════════════════════
+//  DIPLOMACY
+// ══════════════════════════════════════════════════════
+function proposeDeal(cid){
+  const c=C(cid);if(c.relation==='deal'){toast('이미 협정 상태','info');return;}
+  c.relation='deal';c.tariff=0;c.mood+=30;
+  addReaction(c,'fta');
+  logDiplo(`✅ ${c.flag} ${c.name}과 FTA 체결! 관세 0%`,'good');
+  // 라이벌 반응 (미국↔중국 등)
+  AI().filter(x=>x.id!==cid&&Math.random()<0.35).forEach(x=>{x.mood-=8;addReaction(x,'sanction','우리도 협력 관계를 재검토하겠습니다.');});
+  toast(`${c.flag} ${c.name}과 FTA 체결!`,'good');renderAll();
+}
+function raiseTension(cid){
+  const c=C(cid);c.relation='tension';c.tariff=25;c.mood-=20;c.tensionTurns=0;
+  addReaction(c,'tariff_war','이런 태도에 강력히 유감을 표명합니다.');
+  logDiplo(`⚠️ ${c.flag} ${c.name}과 외교 긴장 — 관세 25%`,'warn');
+  toast(`${c.flag} ${c.name}과 관계 악화`,'bad');renderAll();
+}
+function declareTariffWar(cid){
+  const c=C(cid);c.relation='tariff_war';c.tariff=45;c.mood-=35;c.tariffWarTurns=0;
+  P().bal-=30;
+  addReaction(c,'tariff_war');
+  logDiplo(`💥 ${c.flag} ${c.name}에 관세전쟁 선언! 관세 45%`,'bad');
+  AI().filter(x=>x.id!==cid&&Math.random()<0.3).forEach(x=>{x.mood-=10;});
+  toast(`${c.flag} ${c.name}과 관세전쟁!`,'bad');renderAll();
+}
+function declareMilWar(cid){
+  const c=C(cid);
+  if(!confirm(`⚠️ ${c.flag} ${c.name}에 군사전쟁을 선포하시겠습니까?\n전쟁은 GDP·재정·지지율에 심각한 피해를 줍니다.`))return;
+  c.relation='military_war';c.warTurns=0;c.mood=-100;
+  addReaction(c,'military_war_declared');
+  logDiplo(`⚔️ ${c.flag} ${c.name}에 군사전쟁 선포!`,'bad');
+  G.evLog.unshift({text:`🚨 ${c.flag} ${c.name}에 전쟁 선포!`,type:'bad',turn:G.turn});
+  G.approval=Math.max(0,G.approval-10);
+  AI().filter(x=>x.id!==cid).forEach(x=>{x.mood-=15;if(Math.random()<0.4)addReaction(x,'sanction');});
+  toast(`⚔️ ${c.flag} ${c.name}에 선전포고!`,'bad');renderAll();
+}
+function peaceNegotiate(cid){
+  const c=C(cid);const p=P();
+  if(p.bud<500){toast('평화 협상금 $500억 부족','bad');return;}
+  p.bud-=500;c.relation='neutral';c.tariff=15;c.mood=-30;c.warTurns=0;
+  addReaction(c,'normalize','협상을 받아들입니다. 배상금을 확인했습니다.');
+  logDiplo(`🕊 ${c.flag} ${c.name}과 평화 협상 체결 ($500억 지불)`,'info');
+  G.approval=Math.min(100,G.approval+8);
+  toast(`🕊 ${c.flag} ${c.name}과 평화 협정!`,'info');renderAll();
+}
+function normalize(cid){
+  const c=C(cid);c.relation='neutral';c.tariff=10;c.mood+=15;c.tensionTurns=0;c.tariffWarTurns=0;
+  addReaction(c,'normalize');
+  logDiplo(`🕊 ${c.flag} ${c.name}과 관계 정상화`,'info');
+  toast(`${c.flag} ${c.name}과 정상화`,'info');renderAll();
+}
+
+// ══════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════
+const fmt=n=>{const a=Math.abs(n);if(a>=1e8)return(n/1e8).toFixed(1)+'억';if(a>=1e4)return(n/1e4).toFixed(1)+'만';return Math.round(n).toLocaleString();};
+const fG=n=>n>=10000?'$'+(n/10000).toFixed(1)+'조':'$'+Math.round(n)+'억';
+
+function renderMap(){
+  const p=P(),m=MAPS[p.id],el=document.getElementById('map-container');if(!el||!m)return;
+  const mwars=AI().filter(c=>c.relation==='military_war');
+  const glowColor=mwars.length?'rgba(255,68,68,.5)':'rgba(108,99,255,.4)';
+  el.innerHTML=`
+    <svg class="map-svg" viewBox="${m.vb}" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 0 10px ${glowColor})">
+      <path d="${m.path}" fill="${mwars.length?'var(--re)':'var(--ac)'}" opacity=".9" stroke="#fff" stroke-width=".5" stroke-linejoin="round"/>
+    </svg>
+    <div style="font-size:24px;margin-top:10px">${p.flag}</div>
+    <div style="font-size:14px;font-weight:800;margin-top:4px">${p.name}</div>
+    <div style="font-size:11px;color:var(--mu);margin-top:2px">${p.desc}</div>
+    <div style="font-size:11px;color:var(--ac);margin-top:4px;font-weight:600">⭐ ${p.str}</div>
+    ${mwars.length?`<div style="font-size:11px;color:var(--re);margin-top:6px;font-weight:700">⚔️ 전쟁 중 (${mwars.map(c=>c.flag).join(' ')})</div>`:''}`;
+}
+
+function renderAll(){
+  renderHUD(); renderKPIs(); renderPolicies(); renderEvLog();
+  renderWarBanner(); renderCitizens(); renderMap(); renderLB(); renderMySummary();
+  renderTradeTabs(); renderTradeTable(); renderInventory(); renderFX(); renderTradeStats();
+  renderDCards(); renderRLog(); renderDLog(); renderRelOver();
+}
+
+function renderHUD(){
+  const p=P(),la=appLvl(G.approval);
+  document.getElementById('hn').textContent=p.flag+' '+p.name;
+  document.getElementById('hg').textContent=fG(p.gdp);
+  document.getElementById('hb').textContent='$'+Math.round(p.bud)+'억';
+  const av=document.getElementById('app-v');av.textContent=G.approval+'%';av.style.color=la.color;
+  const f=document.getElementById('app-f');f.style.width=G.approval+'%';f.style.background=la.color;
+}
+
+function renderKPIs(){
+  const p=P();
+  const ks=[
+    {l:'GDP',        v:fG(p.gdp),        s:(p.gro>=0?'+':'')+p.gro.toFixed(1)+'%', c:p.gro>=0?'var(--gr)':'var(--re)', f:Math.min(100,p.gdp/300), fc:'var(--go)'},
+    {l:'실업률',     v:p.unemp.toFixed(1)+'%',  s:p.unemp<4?'완전고용':p.unemp<7?'보통':'높음',   c:p.unemp<4?'var(--gr)':p.unemp<7?'var(--wa)':'var(--re)', f:p.unemp*5, fc:'var(--re)'},
+    {l:'물가상승률', v:p.infl.toFixed(1)+'%',   s:p.infl<3?'안정':p.infl<6?'주의':'위험',          c:p.infl<3?'var(--gr)':p.infl<6?'var(--wa)':'var(--re)',   f:p.infl*6,  fc:'var(--wa)'},
+    {l:'무역수지',   v:(p.bal>=0?'+':'')+Math.round(p.bal)+'억$', s:p.bal>=0?'흑자':'적자', c:p.bal>=0?'var(--gr)':'var(--re)', f:50+p.bal/20, fc:'var(--gr)'},
+    {l:'재정',       v:'$'+Math.round(p.bud)+'억', s:p.bud>0?'흑자':'적자', c:p.bud>0?'var(--gr)':'var(--re)', f:Math.max(0,50+p.bud/40), fc:'var(--ac)'},
+    {l:'군사력',     v:p.mil.toFixed(0), s:p.mil<40?'약':p.mil<70?'보통':'강함', c:p.mil<40?'var(--wa)':p.mil<70?'var(--ac)':'var(--re)', f:p.mil, fc:'var(--re)'},
+  ];
+  document.getElementById('krow').innerHTML=ks.map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv" style="color:${k.c}">${k.v}</div><div class="ks" style="color:${k.c}">${k.s}</div><div class="kb"><div class="kf" style="width:${Math.max(2,Math.min(100,k.f))}%;background:${k.fc}"></div></div></div>`).join('');
+}
+
+function renderPolicies(){
+  document.getElementById('ppts').textContent='정책 포인트: '+G.pp;
+  document.getElementById('pgrid').innerHTML=POLS.map(pol=>`
+    <div class="pc">
+      <h4>${pol.icon} ${pol.name}</h4><p>${pol.desc}</p>
+      <button class="pb-btn" onclick="applyPol(${JSON.stringify(pol).replace(/"/g,'&quot;')})" ${G.pp<pol.cost?'disabled':''}>실행 (${pol.cost}pt)</button>
+      <div class="pf">${Object.entries(pol.fx).map(([k,v])=>({infl:'물가',gro:'성장',bud:'재정',unemp:'실업',bal:'무역'}[k]||k)+': '+(v>0?'+':'')+v).join(' · ')}</div>
+    </div>`).join('');
+}
+
+function renderEvLog(){
+  const el=document.getElementById('elog');
+  if(!G.evLog.length){el.innerHTML='<p style="color:var(--mu);font-size:12px;text-align:center;padding:14px">이벤트 없음</p>';return;}
+  el.innerHTML=G.evLog.slice(0,16).map(e=>`<div class="ei ${e.type||'info'}"><div class="eq">Q${((e.turn-1)%4)+1} Y${Math.ceil(e.turn/4)}</div>${e.text}</div>`).join('');
+}
+
+function renderWarBanner(){
+  const wars=AI().filter(c=>c.relation==='military_war');
+  const el=document.getElementById('war-banner');
+  if(!wars.length){el.style.display='none';return;}
+  el.style.display='block';
+  el.innerHTML=wars.map(c=>`
+    <div class="war-banner">
+      <h4>⚔️ 전쟁 중: ${c.flag} ${c.name} (${c.warTurns}턴째)</h4>
+      <div class="war-info">
+        <div class="war-stat"><div style="font-size:10px;color:var(--mu)">적국 GDP</div><div class="ws-v">${fG(c.gdp)}</div></div>
+        <div class="war-stat"><div style="font-size:10px;color:var(--mu)">적 군사력</div><div class="ws-v">${c.mil}</div></div>
+        <div class="war-stat"><div style="font-size:10px;color:var(--mu)">우리 군사력</div><div class="ws-v">${P().mil}</div></div>
+      </div>
+      <div class="war-btns">
+        <button class="wbtn grn" onclick="peaceNegotiate('${c.id}')">🕊 평화 협상 ($500억)</button>
+        <button class="wbtn red" onclick="normalize('${c.id}')">🏳️ 항복 (재정 -$400억)</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderCitizens(){
+  const la=appLvl(G.approval),d=G.approval-G.prevApp;
+  const pnl=document.getElementById('cpnl');
+  pnl.className='cp '+(la.lv||'');
+  const badge=document.getElementById('cbadge');
+  badge.textContent=la.lbl;
+  badge.style.background=la.lv==='g'?'rgba(0,230,118,.15)':la.lv==='w'?'rgba(255,152,0,.15)':la.lv==='r'?'rgba(255,68,68,.15)':'rgba(108,99,255,.15)';
+  badge.style.color=la.color;
+  // ring
+  const cv=document.getElementById('ccanv'),ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,58,58);
+  ctx.beginPath();ctx.arc(29,29,23,0,Math.PI*2);ctx.strokeStyle='#1e2d45';ctx.lineWidth=5;ctx.stroke();
+  ctx.beginPath();ctx.arc(29,29,23,-Math.PI/2,-Math.PI/2+Math.PI*2*(G.approval/100));
+  ctx.strokeStyle=la.color;ctx.lineWidth=5;ctx.lineCap='round';ctx.stroke();
+  const pt=document.getElementById('cpct');pt.textContent=G.approval+'%';pt.style.color=la.color;
+  document.getElementById('cis').textContent=la.status;document.getElementById('cis').style.color=la.color;
+  const tr=document.getElementById('cit2');tr.textContent=`이전 분기 대비 ${d>=0?'+':''}${d}%`;tr.style.color=d>=0?'var(--gr)':'var(--re)';
+  const al=document.getElementById('calert');al.className='calert'+(G.approval<=30?' on':'');
+  document.getElementById('cml').innerHTML=complaints().map(c=>`<div class="cmi ${c.sev}"><div class="ico">${c.icon}</div><div><div class="txt">${c.txt}</div><div class="sev">${c.sev==='critical'?'🔴 강한 불만':c.sev==='warn'?'🟡 불만':'🟢 '+c.lbl}</div></div></div>`).join('');
+}
+
+function renderLB(){
+  const s=[...G.countries].sort((a,b)=>b.gdp-a.gdp);
+  const rk=['🥇','🥈','🥉','4','5','6'];
+  document.getElementById('lb').innerHTML=s.map((c,i)=>`<div class="lbi ${c.isPlayer?'me':''}"><div class="lr">${rk[i]}</div><div class="lf">${c.flag}</div><div class="li"><div class="n">${c.name}${c.isPlayer?' (나)':''}</div><div class="g">${c.gro>=0?'+':''}${c.gro.toFixed(1)}%</div></div><div class="lg">${fG(c.gdp)}</div></div>`).join('');
+}
+
+function renderMySummary(){
+  const p=P(),rank=[...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.isPlayer)+1;
+  const mwars=AI().filter(c=>c.relation==='military_war').length;
+  document.getElementById('mysum').innerHTML=`<div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">현재 순위</span><strong style="color:var(--go)">${rank}위 / 6개국</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">남은 분기</span><strong>${G.maxTurns-G.turn}분기</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">FTA 국가</span><strong style="color:var(--gr)">${AI().filter(c=>c.relation==='deal').length}개국</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">관세전쟁</span><strong style="color:var(--wa)">${AI().filter(c=>c.relation==='tariff_war').length}개국</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">군사전쟁</span><strong style="color:var(--re)">${mwars}개국${mwars>0?' ⚔️':''}</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">시민 지지율</span><strong style="color:${appLvl(G.approval).color}">${G.approval}%</strong></div>
+  </div>`;
+}
+
+// TRADE
+function renderTradeTabs(){
+  if(!G.activeTC)G.activeTC=AI()[0]?.id;
+  const w=document.getElementById('ttabs');if(!w)return;
+  w.innerHTML=AI().map(c=>{
+    const rc=c.relation==='deal'?'var(--gr)':c.relation==='military_war'?'var(--re)':c.relation==='tariff_war'?'var(--wa)':c.relation==='tension'?'#ff9800':'var(--bd)';
+    return `<button onclick="G.activeTC='${c.id}';renderTradeTable();renderTradeTabs()" style="padding:4px 12px;border-radius:20px;border:2px solid ${G.activeTC===c.id?'var(--ac)':rc};background:${G.activeTC===c.id?'var(--ac)':'transparent'};color:${G.activeTC===c.id?'#fff':'var(--tx)'};font-size:12px;font-weight:600;">${c.flag} ${c.name}${c.relation==='military_war'?' ⚔️':''}</button>`;
+  }).join('');
+}
+function renderTradeTable(){
+  const c=C(G.activeTC);if(!c)return;const tb=document.getElementById('ttbody');if(!tb)return;
+  if(c.relation==='military_war'){tb.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--re)">⚔️ 전쟁 중인 국가와는 거래 불가</td></tr>`;return;}
+  const mn={},mx={};
+  GOODS.forEach(g=>{const ps=AI().map(x=>x.prices[g.id]);mn[g.id]=Math.min(...ps);mx[g.id]=Math.max(...ps);});
+  const tar=c.tariff||0;
+  tb.innerHTML=GOODS.map(g=>{
+    const loc=c.prices[g.id],fin=Math.round(loc*(1+tar/100)),diff=((loc-g.base)/g.base*100).toFixed(1),inv=G.inv[g.id]||0;
+    return `<tr>
+      <td><span style="margin-right:4px">${g.emoji}</span><strong>${g.name}</strong></td>
+      <td>$${g.base.toLocaleString()}</td>
+      <td class="${loc===mn[g.id]?'cheap':loc===mx[g.id]?'expensive':''}">$${loc.toLocaleString()} <span style="font-size:10px;color:${parseFloat(diff)>0?'var(--re)':'var(--gr)'}">${diff>0?'+':''}${diff}%</span></td>
+      <td><input class="ti" type="number" min="0" max="100" value="${tar}" onchange="setTariff('${c.id}',this.value)"></td>
+      <td style="font-weight:700;color:var(--ac)">$${fin.toLocaleString()}</td>
+      <td><input class="ti" type="number" min="1" value="1" id="qty-${g.id}" style="width:44px"></td>
+      <td><div style="display:flex;gap:3px;justify-content:flex-end;align-items:center;">
+        <button class="bb" onclick="buyGood('${c.id}','${g.id}')">수입</button>
+        ${inv>0?`<input class="ti" type="number" min="1" max="${inv}" value="1" id="sq-${g.id}" style="width:38px"><button class="bs" onclick="sellGood('${g.id}')">수출(${inv})</button>`:''}
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+function renderInventory(){
+  const el=document.getElementById('invlist');if(!el)return;
+  const items=GOODS.filter(g=>G.inv[g.id]>0);
+  if(!items.length){el.innerHTML='<p style="color:var(--mu);font-size:12px;text-align:center;padding:12px">재고 없음</p>';document.getElementById('invtot').textContent='$0';return;}
+  let tot=0;
+  el.innerHTML=items.map(g=>{const v=g.base*G.inv[g.id];tot+=v;return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd)"><span>${g.emoji} <strong>${g.name}</strong></span><span style="color:var(--mu);font-size:11px">${G.inv[g.id]} ${g.unit}</span><span style="color:var(--go);font-weight:700;font-size:11px">$${fmt(v)}</span></div>`;}).join('');
+  document.getElementById('invtot').textContent='$'+fmt(tot);
+}
+function renderFX(){
+  const el=document.getElementById('fxrates');if(!el)return;
+  el.innerHTML=[['USD/KRW',1350],['EUR/KRW',1450],['CNY/KRW',188],['JPY/KRW',9.1]].map(([n,b])=>{const v=b+(Math.random()-.5)*b*.01,up=Math.random()>.5;return`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bd)"><span style="color:var(--mu)">${n}</span><span style="font-weight:700">${v.toFixed(v>50?0:2)} <span style="color:${up?'var(--gr)':'var(--re)'}">${up?'▲':'▼'}</span></span></div>`;}).join('');
+}
+function renderTradeStats(){
+  const el=document.getElementById('tradestats');if(!el)return;
+  el.innerHTML=[...G.countries].sort((a,b)=>Math.abs(b.bal)-Math.abs(a.bal)).map(c=>`<div style="display:flex;gap:7px;align-items:center;padding:4px 0;border-bottom:1px solid var(--bd)"><span>${c.flag}</span><span style="flex:1;font-size:12px">${c.name}</span><span style="font-size:12px;font-weight:700;color:${c.bal>=0?'var(--gr)':'var(--re)'}">${c.bal>=0?'+':''}${Math.round(c.bal)}억$</span></div>`).join('');
+}
+
+// DIPLOMACY
+function renderDCards(){
+  const el=document.getElementById('dcards');if(!el)return;
+  const sl={neutral:'sn',deal:'sd',tension:'st',tariff_war:'sw',military_war:'smw'};
+  const rl={neutral:'중립',deal:'FTA 체결',tension:'외교긴장',tariff_war:'관세전쟁',military_war:'⚔️ 군사전쟁'};
+  el.innerHTML=AI().map(c=>{
+    const moodColor=c.mood>30?'var(--gr)':c.mood>-10?'var(--ac)':c.mood>-40?'var(--wa)':'var(--re)';
+    const moodLabel=c.mood>30?'우호적':c.mood>-10?'보통':c.mood>-40?'불만':'적대적';
+    const moodPct=Math.max(0,(c.mood+100)/2); // -100~100 → 0~100
+    const ccl={neutral:'',deal:'deal-active',tension:'',tariff_war:'tariff-active',military_war:'war-active'}[c.relation]||'';
+    return `<div class="cc ${ccl}">
+      <div class="cct">
+        <div class="cf">${c.flag}</div>
+        <div class="cin"><div class="cn">${c.name}</div><div class="cg">GDP: ${fG(c.gdp)} · 군사력: ${c.mil} · 관세: ${c.tariff}%</div></div>
+        <div class="cs ${sl[c.relation]}">${rl[c.relation]}</div>
+      </div>
+      <div style="font-size:10px;color:var(--mu);display:flex;justify-content:space-between;margin-bottom:3px">
+        <span>감정: <span style="color:${moodColor};font-weight:700">${moodLabel} (${c.mood>0?'+':''}${Math.round(c.mood)})</span></span>
+        <span>실업 ${c.unemp.toFixed(1)}% · 물가 ${c.infl.toFixed(1)}%</span>
+      </div>
+      <div class="mood-bar"><div class="mood-fill" style="width:${moodPct}%;background:${moodColor}"></div></div>
+      <div class="cbtns">
+        <button class="cb" onclick="proposeDeal('${c.id}')" ${c.relation==='deal'?'disabled':''}>🤝 FTA</button>
+        <button class="cb" onclick="normalize('${c.id}')" ${c.relation==='neutral'?'disabled':''}>🕊 정상화</button>
+        <button class="cb d" onclick="raiseTension('${c.id}')" ${c.relation==='tension'||c.relation==='tariff_war'||c.relation==='military_war'?'disabled':''}>⚠️ 긴장</button>
+        <button class="cb d" onclick="declareTariffWar('${c.id}')" ${c.relation==='tariff_war'||c.relation==='military_war'?'disabled':''}>💥 관세전쟁</button>
+        <button class="cb d" onclick="declareMilWar('${c.id}')" ${c.relation==='military_war'?'disabled':''} style="background:rgba(255,68,68,.1);border-color:rgba(255,68,68,.3);">⚔️ 선전포고</button>
+        ${c.relation==='military_war'?`<button class="cb" onclick="peaceNegotiate('${c.id}')" style="color:var(--gr);border-color:var(--gr)">🕊 평화협상</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderRLog(){
+  const el=document.getElementById('rlog');if(!el)return;
+  if(!G.reactions.length){el.innerHTML='<p style="color:var(--mu);font-size:12px;text-align:center;padding:12px">반응 없음</p>';return;}
+  el.innerHTML=G.reactions.slice(0,12).map(r=>`<div class="ri"><div class="rf">${r.flag}</div><div class="rb"><div class="rc">Q${((r.turn-1)%4)+1} Y${Math.ceil(r.turn/4)} · ${r.name}</div><div class="rm">"${r.msg}"</div></div></div>`).join('');
+}
+function renderDLog(){
+  const el=document.getElementById('dlog');if(!el)return;
+  if(!G.diploLog.length){el.innerHTML='<p style="color:var(--mu);font-size:12px;text-align:center;padding:12px">이벤트 없음</p>';return;}
+  el.innerHTML=G.diploLog.slice(0,15).map(e=>`<div class="ei ${e.type}"><div class="eq">Q${((e.turn-1)%4)+1} Y${Math.ceil(e.turn/4)}</div>${e.text}</div>`).join('');
+}
+function renderRelOver(){
+  const el=document.getElementById('relover');if(!el)return;
+  const deals=AI().filter(c=>c.relation==='deal');
+  const tens=AI().filter(c=>c.relation==='tension');
+  const twars=AI().filter(c=>c.relation==='tariff_war');
+  const mwars=AI().filter(c=>c.relation==='military_war');
+  el.innerHTML=`<div style="display:flex;flex-direction:column;gap:8px">
+    <div><span style="color:var(--gr);font-weight:700">✅ FTA (${deals.length})</span><br><span style="font-size:11px;color:var(--mu)">${deals.map(c=>c.flag+c.name).join(', ')||'없음'}</span></div>
+    <div><span style="color:var(--wa);font-weight:700">⚠️ 긴장 (${tens.length})</span><br><span style="font-size:11px;color:var(--mu)">${tens.map(c=>c.flag+c.name).join(', ')||'없음'}</span></div>
+    <div><span style="color:var(--wa);font-weight:700">💥 관세전쟁 (${twars.length})</span><br><span style="font-size:11px;color:var(--mu)">${twars.map(c=>c.flag+c.name).join(', ')||'없음'}</span></div>
+    <div><span style="color:var(--re);font-weight:700">⚔️ 군사전쟁 (${mwars.length})</span><br><span style="font-size:11px;color:var(--mu)">${mwars.map(c=>c.flag+c.name).join(', ')||'없음'}</span></div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  GAME END
+// ══════════════════════════════════════════════════════
+function endGame(reason){
+  G.gameOver=true;
+  const p=P(),rank=[...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.isPlayer)+1;
+  const mt=document.getElementById('mt'),md=document.getElementById('md'),ms=document.getElementById('ms'),mr=document.getElementById('mr'),mc=document.getElementById('mc');
+  if(reason==='protest'){
+    mt.textContent='💔 탄핵!'; mt.style.color='var(--re)';
+    md.textContent=`시민 지지율이 ${G.approval}%까지 추락했습니다. 대규모 시위 끝에 탄핵 가결.`;
+    ms.textContent=fG(p.gdp); ms.style.color='var(--re)';
+    mr.textContent=`📉 탄핵 당시 ${rank}위`;
+    mc.textContent='물가·실업률·성장률 균형을 맞추고 시민의 목소리를 들어야 했습니다.';
+  } else {
+    const rn=['','🥇 GDP 1위!','🥈 2위','🥉 3위','4위','5위','꼴찌...'];
+    const cm=['','경제 대통령! 세계를 이끄는 강국이 되었습니다!','아깝네요! 조금만 더!','선전했습니다!','중위권입니다.','아쉬운 결과.','경제 위기. 다시 도전!'];
+    mt.textContent='📊 최종 결과'; mt.style.color='var(--go)';
+    md.textContent=`20분기 운영 완료 · 최종 지지율: ${G.approval}% · 전쟁 승리: ${AI().filter(c=>c.mood<-50&&c.relation==='neutral').length}회`;
+    ms.textContent=fG(p.gdp); ms.style.color='var(--ac)';
+    mr.textContent=rn[rank]; mc.textContent=cm[rank];
+  }
+  renderAll();
+  document.getElementById('modal').classList.add('open');
+}
+
+// ══════════════════════════════════════════════════════
+//  NAV / TOAST / START
+// ══════════════════════════════════════════════════════
+function goPage(n){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+n).classList.add('active');
+  document.querySelectorAll('.ntab')[['dash','trade','diplo'].indexOf(n)].classList.add('active');
+  if(n==='trade'){renderTradeTabs();renderTradeTable();renderInventory();renderFX();renderTradeStats();}
+  if(n==='diplo'){renderDCards();renderRLog();renderDLog();renderRelOver();}
+}
+let _tt;
+function toast(msg,type='info'){
+  const el=document.getElementById('toast');el.textContent=msg;el.className='on '+type;
+  clearTimeout(_tt);_tt=setTimeout(()=>el.className='',3000);
+}
+function buildSel(){
+  document.getElementById('csg').innerHTML=CTPL.map(c=>{
+    const m=MAPS[c.id];
+    const miniMap=m?`<svg class="sel-map" viewBox="${m.vb}" xmlns="http://www.w3.org/2000/svg"><path d="${m.path}" fill="var(--ac)" opacity=".75" stroke="var(--ac)" stroke-width="1"/></svg>`:'';
+    return `<div class="csc" onclick="startGame('${c.id}')">
+      ${miniMap}
+      <div class="fl" style="margin-top:4px">${c.flag}</div><div class="cn">${c.name}</div>
+      <div class="cd">${c.desc}</div><div class="cb2">⭐ ${c.str}</div>
+      <div style="font-size:10px;color:var(--wa);margin-top:3px">특성: ${c.bonus}</div>
+      <div style="font-size:10px;color:var(--mu);margin-top:4px">초기 GDP: ${c.gdp>=10000?'$'+(c.gdp/10000)+'조':'$'+c.gdp+'억'} · 군사력: ${c.mil}</div>
+    </div>`;
+  }).join('');
+}
+function startGame(cid){
+  initGame(cid);
+  document.getElementById('sel').style.display='none';
+  document.getElementById('nav').style.display='flex';
+  document.getElementById('qb').textContent='Q1 Y1 / 40분기';
+  renderAll();
+  toast(`${P().flag} ${P().name} 재무장관 취임! 시민 지지율을 유지하세요.`,'good');
+}
+buildSel();
+</script>
+</body>
+</html>
