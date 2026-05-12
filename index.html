@@ -491,8 +491,48 @@ const SPY_OPS=[
   {id:'sabotage', icon:'💣',name:'경제 방해공작',   desc:'대상국 산업 시설 피해 → 대상국 성장 -1.5%.',  cost:60, agent:1, risk:0.25, target:true},
   {id:'manipulate',icon:'🎭',name:'외교 공작',      desc:'대상국과의 감정 개선 +30. 관계 회복에 유리.',  cost:40, agent:0, risk:0.10, target:true},
   {id:'counter',  icon:'🛡',name:'방첩망 강화',     desc:'적국 스파이 차단 능력 강화. CI +25.',          cost:50, agent:0, risk:0.00, target:false},
-  {id:'coup',     icon:'👑',name:'정치 공작',       desc:'대상국 내부 혼란 유발. 고위험·고수익.',        cost:150,agent:1, risk:0.50, target:true},
+  {id:'coup',      icon:'👑',name:'정치 공작',  desc:'대상국 내부 혼란 유발. 고위험·고수익.',                   cost:150,agent:1, risk:0.50, target:true},
+  {id:'assassinate',icon:'🗡️',name:'고위직 암살',desc:'대상국 핵심 인물 제거. 극고위험 — 실패 시 즉각 전쟁.',  cost:300,agent:1, risk:0.65, target:true},
 ];
+const LEADERS={
+  KOR:[
+    {title:'대통령',  name:'박준혁', impact:'pol', desc:'국가 최고 지도자. 암살 시 정치 혼란 극심.'},
+    {title:'경제부총리',name:'김태우', impact:'eco', desc:'경제 컨트롤 타워. 암살 시 시장 붕괴.'},
+    {title:'국방장관', name:'이성민', impact:'mil', desc:'군 통수 지휘관. 암살 시 전력 공백.'},
+    {title:'중앙은행 총재',name:'정유라',impact:'fin', desc:'금융 시스템 수호자. 암살 시 금융 위기.'},
+  ],
+  USA:[
+    {title:'대통령',  name:'James Harrison', impact:'pol', desc:'세계 최강국 수장. 암살 시 세계 경제 충격.'},
+    {title:'재무장관', name:'Robert Walsh',    impact:'eco', desc:'달러 체계 관리자. 암살 시 금융 패닉.'},
+    {title:'국방장관', name:'Michael Stone',   impact:'mil', desc:'세계 최강 군대 지휘관.'},
+    {title:'CIA 국장', name:'Diana Reeves',    impact:'spy', desc:'정보 네트워크 총괄.'},
+  ],
+  CHN:[
+    {title:'국가주석', name:'Li Changwei (李昌威)', impact:'pol', desc:'13억 인민의 지도자. 암살 시 체제 흔들림.'},
+    {title:'국무원 총리',name:'Zhang Guobin (张国斌)',impact:'eco', desc:'경제 정책 총괄. 암살 시 성장 타격.'},
+    {title:'국방부장', name:'Wang Junfu (王军夫)',  impact:'mil', desc:'인민해방군 총사령.'},
+    {title:'중앙은행 행장',name:'Chen Wei (陈伟)',  impact:'fin', desc:'위안화 체계 수호자.'},
+  ],
+  JPN:[
+    {title:'총리',    name:'田中 宏 (Tanaka Hiroshi)', impact:'pol', desc:'일본 행정부 수반.'},
+    {title:'재무상',  name:'佐藤 健一 (Sato Kenichi)', impact:'eco', desc:'엔화·재정 관리자.'},
+    {title:'방위상',  name:'山本 剛 (Yamamoto Go)',    impact:'mil', desc:'자위대 문민 통제.'},
+    {title:'일본은행 총재',name:'鈴木 誠 (Suzuki Makoto)',impact:'fin', desc:'통화·금융 시스템 총괄.'},
+  ],
+  DEU:[
+    {title:'총리',    name:'Klaus Weber',    impact:'pol', desc:'독일 연립정부 수반. 암살 시 EU 혼란.'},
+    {title:'재무장관', name:'Petra Hoffmann', impact:'eco', desc:'유럽 재정 안정 수호자.'},
+    {title:'국방장관', name:'Hans Müller',    impact:'mil', desc:'독일 연방군 최고 감독.'},
+    {title:'연방은행 총재',name:'Friedrich Bauer',impact:'fin', desc:'유럽 통화 안정 핵심.'},
+  ],
+  BRA:[
+    {title:'대통령',  name:'Carlos Mendoza',  impact:'pol', desc:'남미 최대국 수장.'},
+    {title:'재무장관', name:'Rafael Costa',    impact:'eco', desc:'자원 수출 정책 총괄.'},
+    {title:'국방장관', name:'André Oliveira',  impact:'mil', desc:'브라질군 통수권자.'},
+    {title:'중앙은행 총재',name:'Luciana Ferreira',impact:'fin', desc:'헤알화 안정 관리자.'},
+  ],
+};
+
 const DISASTERS=[
   {id:'drought',  icon:'☀️', name:'극심한 가뭄',   desc:'강수량 부족으로 농업 붕괴. 밀·농산물 가격 폭등.',    priceFx:{wheat:.35,agri:.4},  fx:{gro:-.6,bud:-50},         appFx:-5,  dur:3, condType:'rain', condLt:true, condVal:25},
   {id:'flood',    icon:'🌊', name:'대홍수',         desc:'폭우로 인프라 대규모 피해. 재건 예산 급증.',          priceFx:{},                   fx:{gro:-.8,bud:-180},        appFx:-7,  dur:2, condType:'rain', condGt:true, condVal:85},
@@ -621,6 +661,16 @@ function showWarDefeat(c){
   document.body.style.animation='war-shake .7s ease';
   setTimeout(()=>{document.body.style.animation='';},700);
   setTimeout(()=>{ov.style.display='none';},5000);
+}
+function showAssassination(c,title,name){
+  const ov=document.getElementById('war-overlay');
+  ov.className='defeat';ov.style.display='flex';
+  document.getElementById('wo-icon').textContent='🗡️';
+  document.getElementById('wo-title').textContent='암살 성공';
+  document.getElementById('wo-sub').innerHTML=`${c.flag} <strong>${c.name}</strong><br><span style="font-size:20px;color:#ff6b6b">${title}</span><br><strong style="font-size:17px">${name}</strong><br><br><span style="font-size:12px;opacity:.75">국제 사회의 강력한 규탄이 예상됩니다.</span>`;
+  document.body.style.animation='war-shake .5s ease';
+  setTimeout(()=>{document.body.style.animation='';},500);
+  setTimeout(()=>{ov.style.display='none';},7000);
 }
 function spawnConfetti(){
   const colors=['#ffd700','#00e676','#6c63ff','#ff6b6b','#4ecdc4','#45b7d1','#ffeaa7','#a29bfe'];
@@ -958,7 +1008,17 @@ function spyOp(opId){
     G.approval=Math.max(0,G.approval-3);
     G.spyLog.unshift({text:`❌ [발각] ${op.icon} ${op.name}${c?' → '+c.flag+c.name:''}`,turn:G.turn,fail:true});
     toast(`❌ ${op.name} 실패 — 스파이 발각!`,'bad');
-    if(c)spyEscalation(c);
+    if(opId==='assassinate'&&c){
+      // 암살 실패 → 즉각 전쟁 선포
+      c.spyCaught=(c.spyCaught||0)+3;
+      c.relation='military_war';c.warTurns=0;c.mood=-100;
+      addReaction(c,'military_war_declared','암살 시도는 명백한 전쟁 행위입니다! 즉각 선전포고합니다!');
+      logDiplo(`⚔️ ${c.flag}${c.name} — 암살 시도 발각! 즉각 군사전쟁 선포!`,'bad');
+      G.evLog.unshift({text:`🚨 ${c.flag}${c.name}이 암살 시도 발각에 즉각 전쟁 선포!`,type:'bad',turn:G.turn});
+      G.approval=Math.max(0,G.approval-15);
+      AI().filter(x=>x.id!==c.id).forEach(x=>{x.mood-=20;if(Math.random()<0.5)addReaction(x,'sanction','암살 시도는 국제법 위반입니다. 강력 규탄합니다.');});
+      toast(`🚨 ${c.flag} 암살 실패 — 즉각 전쟁 선포!`,'bad');
+    } else if(c) spyEscalation(c);
     renderAll();return;
   }
   let msg='성공';
@@ -968,6 +1028,24 @@ function spyOp(opId){
   else if(opId==='manipulate'&&c){c.mood=Math.min(100,c.mood+30);msg=`${c.flag}${c.name} 감정 +30.`;}
   else if(opId==='counter'){G.spyCI=Math.min(100,G.spyCI+25);msg='방첩망 강화 완료.';}
   else if(opId==='coup'&&c){c.gro-=3;c.bud-=200;c.mood-=40;c.unemp+=2;msg=`${c.flag}${c.name} 내부 혼란 유발!`;}
+  else if(opId==='assassinate'&&c){
+    const leaders=LEADERS[c.id]||[];
+    const victim=leaders.length?leaders[Math.floor(Math.random()*leaders.length)]:{title:'고위 인사',name:'미상',impact:'pol'};
+    const vTitle=victim.title; const vName=victim.name;
+    c.gro-=2.5; c.bud-=200; c.mil-=8; c.mood=-80;
+    G.approval=Math.max(0,G.approval-10);
+    if(victim.impact==='eco'){c.gro-=1.5;c.bud-=150;}
+    else if(victim.impact==='mil'){c.mil-=15;}
+    else if(victim.impact==='pol'){c.gro-=1;c.bud-=100;}
+    else if(victim.impact==='fin'){c.gro-=1;c.bud-=80;}
+    G.countries.filter(x=>x.id!==p.id&&x.id!==c.id).forEach(x=>{x.mood=Math.max(-100,x.mood-20);});
+    if(Math.random()<0.65&&c.relation!=='military_war'){
+      c.relation='military_war';c.warTurns=0;c.mood=-100;
+      addReaction(c,'military_war_declared',`${vName} ${vTitle}의 암살에 복수를 맹세합니다!`);
+    }
+    msg=`${c.flag}${c.name} ${vTitle} ${vName} 암살 성공!`;
+    showAssassination(c,vTitle,vName);
+  }
   G.spyLog.unshift({text:`✅ [성공] ${op.icon} ${op.name} — ${msg}`,turn:G.turn,fail:false});
   if(G.spyLog.length>20)G.spyLog.pop();
   G.evLog.unshift({text:`🕵️ ${op.icon} ${op.name} 작전 성공`,type:'good',turn:G.turn});
