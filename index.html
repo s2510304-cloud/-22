@@ -222,6 +222,25 @@ button{cursor:pointer;}
 .map-svg path{fill:var(--ac);}
 .sel-map{width:56px;height:40px;display:block;margin:4px auto 0;}
 .sel-map path{fill:var(--ac);}
+/* TECH TREE */
+.tech-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+.tech-card{background:var(--panel);border:2px solid var(--bd);border-radius:10px;padding:12px;transition:all .2s;}
+.tech-card.done{border-color:var(--go);background:rgba(0,230,118,.07);}
+.tech-card.locked{opacity:.45;}
+.tech-card.available{border-color:var(--ac);cursor:pointer;}
+.tech-card.available:hover{background:var(--p2);transform:translateY(-2px);}
+.tech-tier{font-size:10px;color:var(--mu);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
+.tech-icon{font-size:32px;margin-bottom:4px;}
+.tech-name{font-size:13px;font-weight:800;margin-bottom:3px;}
+.tech-desc{font-size:11px;color:var(--mu);line-height:1.4;margin-bottom:7px;}
+.tech-req{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px;}
+.tech-req-tag{background:var(--p2);border:1px solid var(--bd);border-radius:4px;padding:1px 6px;font-size:10px;}
+.tech-fx{font-size:10px;color:var(--go);font-weight:700;}
+.tech-btn{width:100%;padding:6px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;margin-top:6px;}
+/* PORTFOLIO / SPARKLINE */
+.port-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);}
+.spark{display:flex;align-items:flex-end;gap:1px;height:24px;}
+.spark-bar{width:5px;border-radius:2px 2px 0 0;min-height:2px;transition:height .3s;}
 /* CLIMATE */
 .clm-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd);font-size:12px;}
 .clm-bar{height:5px;background:var(--bd);border-radius:3px;margin:2px 0 5px;}
@@ -288,6 +307,7 @@ button{cursor:pointer;}
   <button class="ntab"        onclick="goPage('trade')">🌐 무역</button>
   <button class="ntab"        onclick="goPage('diplo')">🤝 외교·전쟁</button>
   <button class="ntab"        onclick="goPage('spy')">🕵️ 첩보·환경</button>
+  <button class="ntab"        onclick="goPage('tech')">🔬 기술</button>
   <div id="nr">
     <div class="hud"><span class="lb">국가</span><span class="vl" id="hn">-</span></div>
     <div class="hud"><span class="lb">GDP</span><span class="vl" id="hg" style="color:var(--go)">-</span></div>
@@ -355,7 +375,7 @@ button{cursor:pointer;}
       </div>
     </div>
     <div>
-      <div class="pnl"><div class="ph"><h3>🏭 재고 창고</h3><span id="invtot" style="font-size:11px;color:var(--go)">$0</span></div><div class="pb" id="invlist"></div></div>
+      <div class="pnl"><div class="ph"><h3>📈 내 포트폴리오</h3><span id="port-pl" style="font-size:11px;font-weight:700">-</span></div><div class="pb" id="portfolio"></div></div>
       <div class="pnl"><div class="ph"><h3>💱 환율</h3></div><div class="pb" id="fxrates"></div></div>
       <div class="pnl"><div class="ph"><h3>📦 글로벌 무역수지</h3></div><div class="pb" id="tradestats"></div></div>
     </div>
@@ -385,6 +405,31 @@ button{cursor:pointer;}
         <div class="pb"><div id="dlog" style="max-height:240px;overflow-y:auto;"></div></div>
       </div>
       <div class="pnl"><div class="ph"><h3>🌍 관계 현황</h3></div><div class="pb" id="relover"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TECH -->
+<div class="page" id="page-tech">
+  <div style="padding:16px;max-width:1200px;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <h2 style="font-size:20px;font-weight:800;margin-bottom:2px">🔬 기술 연구</h2>
+        <span style="font-size:12px;color:var(--mu)">자원을 소비해 영구 효과를 획득합니다. 상위 기술은 선행 연구가 필요합니다.</span>
+      </div>
+      <div style="text-align:right;font-size:12px;color:var(--mu)" id="tech-inv-status"></div>
+    </div>
+    <div id="tech-tier1" style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:800;color:var(--ac);letter-spacing:2px;margin-bottom:8px">TIER 1 — 기초 기술</div>
+      <div class="tech-grid" id="tech-grid-1"></div>
+    </div>
+    <div id="tech-tier2" style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:800;color:var(--wa);letter-spacing:2px;margin-bottom:8px">TIER 2 — 응용 기술</div>
+      <div class="tech-grid" id="tech-grid-2"></div>
+    </div>
+    <div id="tech-tier3">
+      <div style="font-size:11px;font-weight:800;color:var(--re);letter-spacing:2px;margin-bottom:8px">TIER 3 — 첨단 기술</div>
+      <div class="tech-grid" id="tech-grid-3"></div>
     </div>
   </div>
 </div>
@@ -618,6 +663,64 @@ const DISASTERS=[
   {id:'wildfire', icon:'🔥', name:'대형 산불',     desc:'오염 누적으로 산불 확산. 농업·관광 피해.',            priceFx:{agri:.2},            fx:{gro:-.4,bud:-80},         appFx:-4,  dur:2, condType:'poll', condGt:true, condVal:65},
 ];
 
+const TECH_TREE=[
+  // ── TIER 1 ──────────────────────────────────────────
+  {id:'agri_mod',   tier:1,icon:'🌾',name:'정밀농업',      prereq:[],
+   desc:'드론·AI로 농업 생산성 증대. 식량 가격 안정.',
+   req:{agri:5,pharma:2},
+   fx:{gro:+0.5,appFx:+4},fxLabel:'성장률 +0.5% · 지지율 +4'},
+  {id:'renewable',  tier:1,icon:'🌱',name:'재생에너지',    prereq:[],
+   desc:'태양광·풍력 전환. 오염 감소, 에너지 자립.',
+   req:{steel:8,semi:3},
+   fx:{pollFx:-12,bud:+80},fxLabel:'오염도 -12 · 예산 +80억'},
+  {id:'semi_fab',   tier:1,icon:'💾',name:'반도체 자립',   prereq:[],
+   desc:'국내 반도체 파운드리 구축. 수출 핵심 산업.',
+   req:{semi:10,rare:3},
+   fx:{gro:+0.8,bud:+120},fxLabel:'성장률 +0.8% · 예산 +120억'},
+  {id:'biotech1',   tier:1,icon:'💉',name:'바이오 기초',   prereq:[],
+   desc:'신약 연구 기반 확립. 의료 산업 성장.',
+   req:{pharma:8,agri:3},
+   fx:{appFx:+6,gro:+0.4},fxLabel:'지지율 +6 · 성장률 +0.4%'},
+  // ── TIER 2 ──────────────────────────────────────────
+  {id:'ai_tech',    tier:2,icon:'🤖',name:'AI 산업화',     prereq:['semi_fab'],
+   desc:'AI 전산업 적용. 생산성·방첩 동시 향상.',
+   req:{semi:18,rare:5},
+   fx:{gro:+1.2,spyCI:+15},fxLabel:'성장률 +1.2% · 방첩 +15%'},
+  {id:'ev_industry',tier:2,icon:'⚡',name:'전기차 산업',   prereq:['renewable','semi_fab'],
+   desc:'완성차 전기화. 수출 경쟁력 급상승.',
+   req:{semi:10,rare:8,steel:12},
+   fx:{gro:+0.8,bud:+200},fxLabel:'성장률 +0.8% · 예산 +200억'},
+  {id:'space_launch',tier:2,icon:'🚀',name:'우주 발사체', prereq:['semi_fab'],
+   desc:'독자 로켓 개발. 위성·통신 산업 선점.',
+   req:{oil:20,semi:15,steel:18},
+   fx:{gro:+0.6,mil:+10,spyCI:+10},fxLabel:'성장률 +0.6% · 군사 +10 · 방첩 +10%'},
+  {id:'biotech2',   tier:2,icon:'🧬',name:'유전자 기술',   prereq:['biotech1'],
+   desc:'유전자 편집·개인맞춤 신약. 의료 수출 강국.',
+   req:{pharma:18,rare:6},
+   fx:{gro:+0.7,appFx:+8,bud:+150},fxLabel:'성장률 +0.7% · 지지율 +8 · 예산 +150억'},
+  {id:'miltech',    tier:2,icon:'🛡️',name:'첨단 방산',     prereq:[],
+   desc:'스텔스·드론 전력화. 군사력 대폭 강화.',
+   req:{steel:18,semi:12,rare:8},
+   fx:{mil:+30,gro:+0.3},fxLabel:'군사력 +30 · 성장률 +0.3%'},
+  // ── TIER 3 ──────────────────────────────────────────
+  {id:'space_station',tier:3,icon:'🛸',name:'우주 정거장',prereq:['space_launch','ai_tech'],
+   desc:'국제 위상 최고 수준. 우주 경제 선도.',
+   req:{oil:35,semi:30,steel:25,rare:20},
+   fx:{gro:+1.8,mil:+15,appFx:+12},fxLabel:'성장률 +1.8% · 군사 +15 · 지지율 +12'},
+  {id:'fusion',     tier:3,icon:'⚛️',name:'핵융합 에너지',prereq:['renewable','ai_tech'],
+   desc:'무한 청정에너지. 에너지 위기 영구 종식.',
+   req:{rare:25,semi:22,steel:28},
+   fx:{pollFx:-35,gro:+2.2,bud:+300},fxLabel:'오염 -35 · 성장 +2.2% · 예산 +300억'},
+  {id:'agi',        tier:3,icon:'🧠',name:'범용 인공지능',prereq:['ai_tech','biotech2'],
+   desc:'전 분야 AI 대체. 역사상 최대 생산성 혁명.',
+   req:{semi:40,rare:12},
+   fx:{gro:+3.0,spyCI:+25,appFx:+10},fxLabel:'성장률 +3.0% · 방첩 +25% · 지지율 +10'},
+  {id:'nuke',       tier:3,icon:'☢️',name:'핵무기',         prereq:['miltech','space_launch'],
+   desc:'핵 억지력 확보. 전쟁 억제. 단, 강력한 국제 제재.',
+   req:{rare:30,steel:22,semi:18,oil:25},
+   fx:{mil:+60,moodPenalty:true},fxLabel:'군사력 +60 (단, 전국가 감정 -40)'},
+];
+
 const TERROR_EVENTS=[
   {id:'bombing',    icon:'💥', name:'폭탄 테러',         desc:'수도 중심부 폭발. 시민 공포 확산.',          fx:{gro:-.8, bud:-120, app:-10, mil:-3}},
   {id:'cyber',      icon:'💻', name:'사이버 테러',        desc:'핵심 인프라 해킹. 통신·금융망 마비.',        fx:{gro:-1.2,bud:-80,  app:-7,  mil:0}},
@@ -757,6 +860,9 @@ function initGame(pid,mode){
     terrorCooldown:0,
     powerCooldowns:{},
     activePowers:[],
+    techsOwned:new Set(),
+    portfolio:{},
+    priceHistory:{},
     warPremium:1,envMult:{oil:1,wheat:1,agri:1,steel:1,semi:1,car:1,pharma:1,rare:1},
     countries:CTPL.map(c=>({
       ...c,
@@ -771,7 +877,7 @@ function initGame(pid,mode){
       prices:Object.fromEntries(GOODS.map(g=>[g.id,Math.round(g.base*(PM[c.id]?.[g.id]||1))])),
     })),
   };
-  GOODS.forEach(g=>{G.inv[g.id]=0;});
+  GOODS.forEach(g=>{G.inv[g.id]=0;G.priceHistory[g.id]=[g.base];});
 }
 const P=()=>G.countries.find(c=>c.isPlayer);
 const AI=()=>G.countries.filter(c=>!c.isPlayer);
@@ -1026,6 +1132,13 @@ function nextQ(){
   G.countries.forEach(c=>GOODS.forEach(g=>{
     c.prices[g.id]=Math.max(Math.round(g.base*.5),Math.round(c.prices[g.id]*(.95+Math.random()*.1)));
   }));
+  // 가격 이력 기록 (플레이어 국가 기준 평균가)
+  GOODS.forEach(g=>{
+    const avg=Math.round(AI().reduce((s,c)=>s+c.prices[g.id],0)/Math.max(1,AI().length));
+    if(!G.priceHistory[g.id])G.priceHistory[g.id]=[];
+    G.priceHistory[g.id].push(avg);
+    if(G.priceHistory[g.id].length>10)G.priceHistory[g.id].shift();
+  });
 
   applyActivePowers();
   doClimate();
@@ -1084,15 +1197,24 @@ function buyGood(cid,gid){
   if(cost>p.bud){toast('예산 부족','bad');return;}
   p.bud-=cost; G.inv[gid]=(G.inv[gid]||0)+qty;
   G.totImp+=cost/100; p.bal-=cost/1000;
+  // 포트폴리오 평균 매입가 추적
+  const pf=G.portfolio[gid]||{qty:0,totalCost:0};
+  pf.qty+=qty; pf.totalCost+=cost; G.portfolio[gid]=pf;
   toast(`${g.emoji} ${g.name} ${qty}${g.unit} 수입 ($${fmt(cost)})`,'good'); renderAll();
 }
-function sellGood(gid){
-  const qty=parseInt(document.getElementById('sq-'+gid)?.value)||1;
+function sellGood(gid,qty){
+  qty=qty||parseInt(document.getElementById('sq-'+gid)?.value)||1;
   if((G.inv[gid]||0)<qty){toast('재고 부족','bad');return;}
   const g=GOODS.find(x=>x.id===gid),p=P();
-  const rev=Math.round(g.base*1.05)*qty;
+  // 현재 시장 최고가로 판매 (가장 유리한 국가 기준)
+  const bestPrice=Math.max(...AI().map(c=>c.prices[gid]||g.base));
+  const envM=G.envMult?.[gid]||1;
+  const rev=Math.round(bestPrice*(G.warPremium||1)*envM)*qty;
   p.bud+=rev; G.inv[gid]-=qty; G.totExp+=rev/100; p.bal+=rev/1000;
-  toast(`${g.emoji} ${g.name} ${qty}${g.unit} 수출 ($${fmt(rev)})`,'good'); renderAll();
+  // 포트폴리오 업데이트
+  const pf=G.portfolio[gid];
+  if(pf){pf.qty=Math.max(0,pf.qty-qty);if(pf.qty===0)delete G.portfolio[gid];}
+  toast(`${g.emoji} ${g.name} ${qty}${g.unit} 매도 ($${fmt(rev)})`,'good'); renderAll();
 }
 function setTariff(cid,v){const c=C(cid);if(c)c.tariff=Math.max(0,Math.min(100,parseInt(v)||0));renderTradeTable();}
 
@@ -1479,6 +1601,129 @@ function aiSpyAttack(){
 // ══════════════════════════════════════════════════════
 //  RENDER
 // ══════════════════════════════════════════════════════
+//  TECH TREE
+// ══════════════════════════════════════════════════════
+function canResearch(tech){
+  if(G.techsOwned.has(tech.id))return false;
+  if(!tech.prereq.every(r=>G.techsOwned.has(r)))return false;
+  return Object.entries(tech.req).every(([gid,need])=>(G.inv[gid]||0)>=need);
+}
+function researchTech(id){
+  const tech=TECH_TREE.find(t=>t.id===id);if(!tech)return;
+  if(G.techsOwned.has(id)){toast('이미 연구 완료된 기술입니다','warn');return;}
+  if(!tech.prereq.every(r=>G.techsOwned.has(r))){toast('선행 기술이 필요합니다','bad');return;}
+  const missing=Object.entries(tech.req).filter(([gid,need])=>(G.inv[gid]||0)<need);
+  if(missing.length){
+    const GOOD_NAMES={oil:'원유',wheat:'밀',agri:'농산물',steel:'철강',semi:'반도체',car:'자동차',pharma:'의약품',rare:'희토류'};
+    toast(`자원 부족: ${missing.map(([g,n])=>GOOD_NAMES[g]+' '+n+'단위').join(', ')}`,'bad');return;
+  }
+  // 자원 소모
+  Object.entries(tech.req).forEach(([gid,need])=>{
+    G.inv[gid]=(G.inv[gid]||0)-need;
+    const pf=G.portfolio[gid];
+    if(pf){pf.qty=Math.max(0,pf.qty-need);if(pf.qty===0)delete G.portfolio[gid];}
+  });
+  G.techsOwned.add(id);
+  const p=P();
+  // 효과 적용
+  if(tech.fx.gro)p.gro+=tech.fx.gro;
+  if(tech.fx.appFx)G.approval=Math.min(100,G.approval+tech.fx.appFx);
+  if(tech.fx.bud)p.bud+=tech.fx.bud;
+  if(tech.fx.mil)p.mil=Math.max(0,p.mil+tech.fx.mil);
+  if(tech.fx.pollFx)G.climate.poll=Math.max(0,G.climate.poll+tech.fx.pollFx);
+  if(tech.fx.spyCI)G.spyCI=Math.min(100,G.spyCI+tech.fx.spyCI);
+  if(tech.fx.moodPenalty)AI().forEach(c=>{c.mood-=40;addReaction(c,'sanction','핵무기 개발을 강력 규탄합니다!');});
+  G.evLog.unshift({text:`🔬 [기술] ${tech.icon} ${tech.name} 연구 완료!`,type:'good',turn:G.turn});
+  toast(`${tech.icon} ${tech.name} 연구 완료!`,'good');
+  renderAll();
+}
+function renderTechTree(){
+  const el1=document.getElementById('tech-grid-1');
+  const el2=document.getElementById('tech-grid-2');
+  const el3=document.getElementById('tech-grid-3');
+  if(!el1)return;
+  const invEl=document.getElementById('tech-inv-status');
+  if(invEl){
+    const GNAMES={oil:'원유',wheat:'밀',agri:'농산물',steel:'철강',semi:'반도체',car:'자동차',pharma:'의약품',rare:'희토류'};
+    invEl.innerHTML=GOODS.map(g=>`<span style="margin-left:8px">${g.emoji}${G.inv[g.id]||0}</span>`).join('');
+  }
+  [1,2,3].forEach(tier=>{
+    const el=document.getElementById(`tech-grid-${tier}`);if(!el)return;
+    el.innerHTML=TECH_TREE.filter(t=>t.tier===tier).map(tech=>{
+      const done=G.techsOwned.has(tech.id);
+      const prereqMet=tech.prereq.every(r=>G.techsOwned.has(r));
+      const resMet=Object.entries(tech.req).every(([g,n])=>(G.inv[g]||0)>=n);
+      const avail=!done&&prereqMet;
+      const cls=done?'done':!prereqMet?'locked':resMet?'available':'';
+      const GNAMES={oil:'원유',wheat:'밀',agri:'농산물',steel:'철강',semi:'반도체',car:'자동차',pharma:'의약품',rare:'희토류'};
+      const reqTags=Object.entries(tech.req).map(([g,n])=>{
+        const have=G.inv[g]||0;const ok=have>=n;
+        return`<span class="tech-req-tag" style="color:${ok?'var(--go)':'var(--re)'};">${GNAMES[g]} ${have}/${n}</span>`;
+      }).join('');
+      const prereqTag=tech.prereq.length?`<div style="font-size:10px;color:var(--mu);margin-bottom:4px">선행: ${tech.prereq.map(r=>{const t=TECH_TREE.find(x=>x.id===r);return(G.techsOwned.has(r)?'✅':'🔒')+' '+(t?.name||r);}).join(', ')}</div>`:'';
+      const btnStyle=done?'background:var(--go);color:#000':resMet&&avail?'background:var(--ac);color:#fff':'background:var(--bd);color:var(--mu)';
+      return`<div class="tech-card ${cls}">
+        <div class="tech-tier">TIER ${tier}</div>
+        <div class="tech-icon">${tech.icon}</div>
+        <div class="tech-name">${tech.name}</div>
+        <div class="tech-desc">${tech.desc}</div>
+        ${prereqTag}
+        <div class="tech-req">${reqTags}</div>
+        <div class="tech-fx">📈 ${tech.fxLabel}</div>
+        <button class="tech-btn" style="${btnStyle}" onclick="researchTech('${tech.id}')" ${done||!avail?'disabled':''}>
+          ${done?'✅ 연구 완료':!prereqMet?'🔒 선행 기술 필요':resMet?'🔬 연구 시작':'⚠️ 자원 부족'}
+        </button>
+      </div>`;
+    }).join('');
+  });
+}
+
+function renderPortfolio(){
+  const el=document.getElementById('portfolio');if(!el)return;
+  const items=GOODS.filter(g=>(G.inv[g.id]||0)>0);
+  if(!items.length){el.innerHTML='<p style="color:var(--mu);font-size:12px;text-align:center;padding:12px">보유 자원 없음<br><span style="font-size:10px">무역 탭에서 자원을 매수하세요</span></p>';document.getElementById('port-pl').textContent='-';return;}
+  let totalPL=0;
+  el.innerHTML=items.map(g=>{
+    const inv=G.inv[g.id]||0;
+    const curPrice=Math.max(...AI().map(c=>c.prices[g.id]||g.base));
+    const pf=G.portfolio[g.id];
+    const avgBuy=pf&&pf.qty>0?Math.round(pf.totalCost/pf.qty):g.base;
+    const curVal=curPrice*inv;
+    const costVal=avgBuy*inv;
+    const pl=curVal-costVal;
+    const plPct=costVal>0?((pl/costVal)*100).toFixed(1):0;
+    totalPL+=pl;
+    // 스파크라인
+    const hist=G.priceHistory[g.id]||[curPrice];
+    const mx=Math.max(...hist),mn=Math.min(...hist),rng=mx-mn||1;
+    const spark=hist.map(v=>{
+      const h=Math.max(3,Math.round(((v-mn)/rng)*22));
+      const col=v>=hist[hist.length-1]?'var(--gr)':'var(--re)';
+      return`<div class="spark-bar" style="height:${h}px;background:${col}"></div>`;
+    }).join('');
+    const trend=hist.length>1?(hist[hist.length-1]-hist[hist.length-2]):0;
+    const trendIcon=trend>0?'▲':trend<0?'▼':'─';
+    const trendCol=trend>0?'var(--re)':trend<0?'var(--go)':'var(--mu)';
+    return`<div class="port-row">
+      <div style="width:24px;text-align:center;font-size:18px">${g.emoji}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700">${g.name} <span style="color:${trendCol};font-size:11px">${trendIcon} $${curPrice}</span></div>
+        <div style="font-size:10px;color:var(--mu)">${inv}${g.unit} · 평균매수 $${avgBuy}</div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:6px">
+        <div class="spark">${spark}</div>
+        <div style="text-align:right;min-width:70px">
+          <div style="font-size:11px;font-weight:700;color:${pl>=0?'var(--go)':'var(--re)'}">${pl>=0?'+':''}$${fmt(Math.abs(pl))} (${plPct}%)</div>
+          <button onclick="sellGood('${g.id}',${inv})" style="font-size:10px;padding:2px 8px;border:1px solid var(--re);background:transparent;color:var(--re);border-radius:4px;cursor:pointer;margin-top:2px">전량 매도</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  const plEl=document.getElementById('port-pl');
+  if(plEl)plEl.innerHTML=`<span style="color:${totalPL>=0?'var(--go)':'var(--re)'};font-weight:700">${totalPL>=0?'+':''}$${fmt(Math.abs(totalPL))} 평가손익</span>`;
+}
+
+// ══════════════════════════════════════════════════════
 //  STATE POWERS
 // ══════════════════════════════════════════════════════
 function usePower(id){
@@ -1776,7 +2021,7 @@ function renderAll(){
   renderHUD(); renderKPIs(); renderPolicies(); renderEvLog();
   renderWarBanner(); renderCitizens(); renderMap(); renderLB(); renderMySummary();
   renderTradeTabs(); renderTradeTable(); renderInventory(); renderFX(); renderTradeStats();
-  renderStatePowers();
+  renderStatePowers(); renderTechTree(); renderPortfolio();
   renderPendingProposals(); renderDCards(); renderRLog(); renderDLog(); renderRelOver();
   renderClimate('climate-dash'); renderClimate('climate-pnl');
   renderDisBox(); renderElecBox(); renderSpy();
