@@ -290,6 +290,7 @@ button{cursor:pointer;}
         <div class="ph"><h3>🌐 품목별 무역 거래</h3><span style="font-size:10px;color:var(--mu)"><span style="color:var(--gr)">●</span>최저가 <span style="color:var(--re);margin-left:5px">●</span>최고가</span></div>
         <div class="pb" style="padding:7px 10px;">
           <div id="ttabs" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;"></div>
+          <div id="trade-notices"></div>
           <table class="tbl"><thead><tr><th style="text-align:left">품목</th><th>기준가</th><th>현지가</th><th>관세</th><th>실구매가</th><th>수량</th><th>거래</th></tr></thead>
           <tbody id="ttbody"></tbody></table>
         </div>
@@ -518,6 +519,7 @@ function initGame(pid){
     election:{next:16},
     climate:{temp:.8,rain:58,poll:20,disaster:null,disTurns:0,log:[]},
     spyAgents:3,spyLog:[],spyCI:15,spyBoost:0,
+    warPremium:1,envMult:{oil:1,wheat:1,agri:1,steel:1,semi:1,car:1,pharma:1,rare:1},
     countries:CTPL.map(c=>({
       ...c,
       isPlayer:c.id===pid,
@@ -527,6 +529,7 @@ function initGame(pid){
       tensionTurns:0,    // 긴장 유지 턴
       tariffWarTurns:0,  // 관세전쟁 유지 턴
       warTurns:0,        // 군사전쟁 유지 턴
+      spyCaught:0,       // 스파이 적발 횟수
       prices:Object.fromEntries(GOODS.map(g=>[g.id,Math.round(g.base*(PM[c.id]?.[g.id]||1))])),
     })),
   };
@@ -761,6 +764,7 @@ function nextQ(){
   }));
 
   doClimate();
+  updateMarket();
   if(G.spyBoost>0){G.spyBoost--;P().gro+=.4;}
   aiSpyAttack();
   recalcApproval();
@@ -804,8 +808,9 @@ function applyPol(pol){
 function buyGood(cid,gid){
   const qty=parseInt(document.getElementById('qty-'+gid)?.value)||1;
   const c=C(cid),g=GOODS.find(x=>x.id===gid),p=P();
-  if(c.relation==='military_war'){toast('전쟁 중인 국가와는 거래 불가','bad');return;}
-  const cost=Math.round(c.prices[gid]*(1+(c.tariff||0)/100))*qty;
+  if(c.relation==='military_war'){toast('🚫 무역 금지 — 교전국과는 거래 불가','bad');return;}
+  const envM=G.envMult?.[gid]||1;
+  const cost=Math.round(c.prices[gid]*(1+(c.tariff||0)/100)*(G.warPremium||1)*envM)*qty;
   if(cost>p.bud){toast('예산 부족','bad');return;}
   p.bud-=cost; G.inv[gid]=(G.inv[gid]||0)+qty;
   G.totImp+=cost/100; p.bal-=cost/1000;
@@ -950,11 +955,10 @@ function spyOp(opId){
   if(op.agent)G.spyAgents=Math.max(0,G.spyAgents-op.agent);
   const success=Math.random()>op.risk;
   if(!success){
-    const failMood={sabotage:-20,coup:-30,manipulate:-15,steal:-10};
-    if(c&&failMood[opId]){c.mood+=failMood[opId];addReaction(c,'tariff_war','귀국의 공작 행위를 강력 규탄합니다!');}
     G.approval=Math.max(0,G.approval-3);
-    G.spyLog.unshift({text:`❌ [실패] ${op.icon} ${op.name}${c?' → '+c.flag+c.name:''}`,turn:G.turn,fail:true});
-    toast(`❌ ${op.name} 실패!`,'bad');
+    G.spyLog.unshift({text:`❌ [발각] ${op.icon} ${op.name}${c?' → '+c.flag+c.name:''}`,turn:G.turn,fail:true});
+    toast(`❌ ${op.name} 실패 — 스파이 발각!`,'bad');
+    if(c)spyEscalation(c);
     renderAll();return;
   }
   let msg='성공';
@@ -970,6 +974,72 @@ function spyOp(opId){
   toast(`✅ ${op.name} 성공!`,'good');
   renderAll();
 }
+function spyEscalation(c){
+  c.spyCaught=(c.spyCaught||0)+1;
+  c.mood-=25;
+  const n=c.spyCaught;
+  if(n===1){
+    addReaction(c,'tariff_war','귀국의 공작원을 체포했습니다. 재발 시 강경 대응하겠습니다!');
+    logDiplo(`⚠️ ${c.flag}${c.name} — 스파이 적발 1회. 외교 경고 발신.`,'warn');
+    G.evLog.unshift({text:`⚠️ ${c.flag}${c.name}이 스파이 적발 — 1차 외교 경고`,type:'warn',turn:G.turn});
+    toast(`⚠️ ${c.flag} 외교 경고 — 스파이 적발 1회`,'warn');
+  } else if(n===2){
+    if(c.relation==='deal'||c.relation==='neutral'){
+      c.relation='tension';c.tariff=25;c.tensionTurns=0;
+    }
+    addReaction(c,'tariff_war','두 번이나 공작원을 보내다니 용납할 수 없습니다. 외교 관계를 격하합니다!');
+    logDiplo(`🔴 ${c.flag}${c.name} — 스파이 2회 적발! 외교 긴장 격상.`,'bad');
+    G.evLog.unshift({text:`🔴 ${c.flag}${c.name} 스파이 2회 적발 — 외교 관계 긴장 격상!`,type:'bad',turn:G.turn});
+    toast(`🔴 ${c.flag} 스파이 2회 적발! 관계 악화.`,'bad');
+  } else if(n===3){
+    if(c.relation!=='tariff_war'&&c.relation!=='military_war'){
+      c.relation='tariff_war';c.tariff=55;c.tariffWarTurns=0;
+      addReaction(c,'tariff_war');
+    }
+    logDiplo(`💥 ${c.flag}${c.name} — 스파이 3회 적발! 관세전쟁 선포!`,'bad');
+    G.evLog.unshift({text:`💥 ${c.flag}${c.name} 스파이 3회 적발 — 즉각 관세전쟁 선포!`,type:'bad',turn:G.turn});
+    toast(`💥 ${c.flag} 스파이 3회 적발! 관세전쟁 선포!`,'bad');
+  } else {
+    if(c.relation!=='military_war'&&Math.random()<0.55){
+      c.relation='military_war';c.warTurns=0;c.mood=-100;
+      addReaction(c,'military_war_declared','스파이 공작이 도를 넘었습니다. 이는 전쟁 행위입니다. 선전포고합니다!');
+      logDiplo(`⚔️ ${c.flag}${c.name} — 스파이 반복 적발에 군사전쟁 선포!`,'bad');
+      G.evLog.unshift({text:`🚨 ${c.flag}${c.name}이 스파이 반복 적발에 분노 — 전쟁 선포!`,type:'bad',turn:G.turn});
+      G.approval=Math.max(0,G.approval-8);
+      toast(`🚨 ${c.flag} 스파이 ${n}회 적발 — 전쟁 선포!`,'bad');
+    } else {
+      addReaction(c,'military_war_declared','다시 한 번이라도 공작을 시도하면 전쟁도 불사하겠습니다!');
+      logDiplo(`⚠️ ${c.flag}${c.name} — 스파이 ${n}회 적발. 전쟁 직전 상황!`,'bad');
+      toast(`⚠️ ${c.flag} 스파이 ${n}회 적발 — 전쟁 위기!`,'bad');
+    }
+  }
+}
+
+function updateMarket(){
+  const cl=G.climate;
+  const wars=AI().filter(c=>c.relation==='military_war').length;
+  G.warPremium=1+wars*0.08;
+  if(wars>0)P().infl+=wars*0.2;
+  const em={oil:1,wheat:1,agri:1,steel:1,semi:1,car:1,pharma:1,rare:1};
+  // 오염 → 농산물·의약품 가격 상승
+  if(cl.poll>40){const f=1+(cl.poll-40)/500;em.wheat*=f;em.agri*=f;}
+  if(cl.poll>60){const f=1+(cl.poll-60)/400;em.pharma*=f;em.agri*=f*1.1;}
+  // 가뭄 → 곡물·농산물 가격 급등
+  if(cl.rain<35){const f=1+(35-cl.rain)/150;em.wheat*=f;em.agri*=f*1.15;}
+  if(cl.rain<20){const f=1+(20-cl.rain)/100;em.wheat*=f;em.agri*=f;}
+  // 홍수 → 철강 수요 급증
+  if(cl.rain>80){const f=1+(cl.rain-80)/300;em.steel*=f;}
+  // 폭염 → 원유 수요 증가
+  if(cl.temp>1.5){const f=1+(cl.temp-1.5)/10;em.oil*=f;}
+  // 한파 → 에너지 위기
+  if(cl.temp<0){const f=1+Math.abs(cl.temp)/7;em.oil*=f;em.pharma*=f*.5;}
+  // 재해 중 추가 효과
+  if(cl.disaster&&cl.disaster.priceFx){
+    GOODS.forEach(g=>{if(cl.disaster.priceFx[g.id])em[g.id]*=(1+(cl.disaster.priceFx[g.id]||0)*.5);});
+  }
+  G.envMult=em;
+}
+
 function aiSpyAttack(){
   const p=P();
   AI().filter(c=>c.mood<-20&&Math.random()<.07).forEach(c=>{
@@ -1171,18 +1241,38 @@ function renderTradeTabs(){
 }
 function renderTradeTable(){
   const c=C(G.activeTC);if(!c)return;const tb=document.getElementById('ttbody');if(!tb)return;
-  if(c.relation==='military_war'){tb.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--re)">⚔️ 전쟁 중인 국가와는 거래 불가</td></tr>`;return;}
+  if(c.relation==='military_war'){
+    tb.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--re)">🚫 무역 금지령 — ${c.flag} ${c.name}은 교전국입니다.<br><span style="font-size:11px;color:var(--mu)">전쟁 종료 후 무역 재개 가능</span></td></tr>`;
+    return;
+  }
   const mn={},mx={};
   GOODS.forEach(g=>{const ps=AI().map(x=>x.prices[g.id]);mn[g.id]=Math.min(...ps);mx[g.id]=Math.max(...ps);});
   const tar=c.tariff||0;
+  const wP=G.warPremium||1;
+  const cl=G.climate;
+  // 시장 상황 알림
+  const notices=[];
+  if(wP>1)notices.push(`<span style="color:var(--re)">⚔️ 전쟁 할증 +${Math.round((wP-1)*100)}%</span>`);
+  if(cl.rain<35)notices.push(`<span style="color:var(--wa)">🏜️ 가뭄 — 🌾밀·🥬농산물 ↑</span>`);
+  if(cl.rain>80)notices.push(`<span style="color:var(--ac)">🌊 홍수 — ⚙️철강 ↑</span>`);
+  if(cl.temp>1.5)notices.push(`<span style="color:var(--re)">🌡️ 폭염 — 🛢원유 ↑</span>`);
+  if(cl.temp<0)notices.push(`<span style="color:var(--ac)">🌨️ 한파 — 🛢원유 ↑</span>`);
+  if(cl.poll>60)notices.push(`<span style="color:var(--wa)">🏭 오염 — 🌾밀·🥬농산물·💊의약품 ↑</span>`);
+  const noticeEl=document.getElementById('trade-notices');
+  if(noticeEl)noticeEl.innerHTML=notices.length?`<div style="display:flex;gap:10px;flex-wrap:wrap;background:rgba(108,99,255,.07);border:1px solid var(--bd);border-radius:7px;padding:7px 10px;margin-bottom:8px;font-size:11px;">${notices.join(' · ')}</div>`:'';
   tb.innerHTML=GOODS.map(g=>{
-    const loc=c.prices[g.id],fin=Math.round(loc*(1+tar/100)),diff=((loc-g.base)/g.base*100).toFixed(1),inv=G.inv[g.id]||0;
+    const loc=c.prices[g.id];
+    const envM=G.envMult?.[g.id]||1;
+    const fin=Math.round(loc*(1+tar/100)*wP*envM);
+    const diff=((loc-g.base)/g.base*100).toFixed(1);
+    const inv=G.inv[g.id]||0;
+    const inflated=fin>Math.round(loc*(1+tar/100))*1.01;
     return `<tr>
       <td><span style="margin-right:4px">${g.emoji}</span><strong>${g.name}</strong></td>
       <td>$${g.base.toLocaleString()}</td>
       <td class="${loc===mn[g.id]?'cheap':loc===mx[g.id]?'expensive':''}">$${loc.toLocaleString()} <span style="font-size:10px;color:${parseFloat(diff)>0?'var(--re)':'var(--gr)'}">${diff>0?'+':''}${diff}%</span></td>
       <td><input class="ti" type="number" min="0" max="100" value="${tar}" onchange="setTariff('${c.id}',this.value)"></td>
-      <td style="font-weight:700;color:var(--ac)">$${fin.toLocaleString()}</td>
+      <td style="font-weight:700;color:${inflated?'var(--re)':'var(--ac)'}">$${fin.toLocaleString()}${inflated?'<span style="font-size:9px"> ▲</span>':''}</td>
       <td><input class="ti" type="number" min="1" value="1" id="qty-${g.id}" style="width:44px"></td>
       <td><div style="display:flex;gap:3px;justify-content:flex-end;align-items:center;">
         <button class="bb" onclick="buyGood('${c.id}','${g.id}')">수입</button>
