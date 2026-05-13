@@ -301,6 +301,24 @@ button{cursor:pointer;}
 .dis-box{background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.3);border-radius:9px;padding:10px 13px;margin-bottom:11px;display:none;animation:pr 1.4s infinite;}
 .dis-box h4{color:var(--re);font-size:13px;margin-bottom:3px;}
 .dis-box p{font-size:11px;color:rgba(255,180,180,.85);line-height:1.5;}
+/* TUTORIAL */
+#tut-overlay{position:fixed;inset:0;z-index:9900;pointer-events:none;}
+#tut-overlay.active{pointer-events:all;}
+#tut-dim{position:absolute;inset:0;background:rgba(0,0,0,.7);transition:opacity .3s;}
+#tut-box{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);width:min(520px,92vw);background:var(--panel);border:2px solid var(--ac);border-radius:16px;padding:22px 24px;box-shadow:0 0 40px rgba(108,99,255,.4);animation:tut-in .3s ease;}
+@keyframes tut-in{from{opacity:0;transform:translateX(-50%) translateY(16px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+#tut-step{font-size:10px;color:var(--mu);letter-spacing:2px;margin-bottom:8px;}
+#tut-title{font-size:17px;font-weight:900;margin-bottom:10px;color:var(--tx);}
+#tut-body{font-size:13px;color:var(--mu);line-height:1.7;margin-bottom:18px;}
+#tut-body b{color:var(--tx);}
+#tut-dots{display:flex;gap:5px;margin-bottom:14px;}
+.tut-dot{width:7px;height:7px;border-radius:50%;background:var(--bd);transition:background .2s;}
+.tut-dot.on{background:var(--ac);}
+#tut-btns{display:flex;gap:8px;justify-content:flex-end;}
+.tut-btn{padding:8px 20px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;}
+.tut-btn.next{background:var(--ac);color:#fff;}
+.tut-btn.skip{background:transparent;border:1px solid var(--bd);color:var(--mu);}
+.tut-highlight{outline:3px solid var(--ac)!important;outline-offset:4px;box-shadow:0 0 0 6px rgba(108,99,255,.25)!important;border-radius:8px;position:relative;z-index:9901;}
 /* DISASTER RESPONSE MODAL */
 #dis-modal{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;}
 #dis-modal.open{display:flex;}
@@ -533,6 +551,21 @@ button{cursor:pointer;}
   <div class="wo-title" id="wo-title"></div>
   <div class="wo-sub" id="wo-sub"></div>
   <div class="wo-skip">클릭하여 닫기</div>
+</div>
+
+<!-- TUTORIAL OVERLAY -->
+<div id="tut-overlay">
+  <div id="tut-dim"></div>
+  <div id="tut-box">
+    <div id="tut-step"></div>
+    <div id="tut-title"></div>
+    <div id="tut-body"></div>
+    <div id="tut-dots"></div>
+    <div id="tut-btns">
+      <button class="tut-btn skip" onclick="endTutorial()">건너뛰기</button>
+      <button class="tut-btn next" id="tut-next" onclick="tutNext()">다음 →</button>
+    </div>
+  </div>
 </div>
 
 <!-- DISASTER RESPONSE MODAL -->
@@ -2911,6 +2944,67 @@ function buildSel(){
     </div>`;
   }).join('');
 }
+// ══════════════════════════════════════════════════════
+//  TUTORIAL
+// ══════════════════════════════════════════════════════
+const TUT_STEPS=[
+  {title:'👋 EcoNation에 오신 것을 환영합니다!',
+   body:'당신은 국가의 <b>대통령</b>입니다. 경제를 성장시키고, 외교 관계를 관리하고, 국민의 지지율을 유지하세요. <b>40턴(분기)</b> 동안 나라를 잘 운영하면 됩니다!',
+   hi:null},
+  {title:'📊 가장 중요한 것 — 지지율!',
+   body:'우측 상단의 <b>시민 지지율</b>을 항상 확인하세요. 지지율이 <b>10% 이하</b>가 되면 탄핵으로 게임 오버! <b>42% 이하</b>에서 경제 위기가 겹치면 내전이 발생할 수 있습니다.',
+   hi:'app-hud'},
+  {title:'💰 재정(예산)을 지켜라',
+   body:'<b>재정</b>이 바닥나면 정책도 못 쓰고 전쟁도 못 합니다. 세금 정책, 무역 수출, FTA 체결로 매 턴 수입을 늘리세요. 우측 상단에서 현재 재정을 확인할 수 있습니다.',
+   hi:'hb'},
+  {title:'🏛️ 정책 카드로 나라 운영',
+   body:'대시보드의 <b>정책 카드</b>를 클릭해서 국가를 운영합니다. 매 턴 <b>정책 포인트(PP) 2개</b>가 지급됩니다. 금리 인상·세금 조정·복지 확대·군비 증강 등을 상황에 맞게 골라 쓰세요.',
+   hi:'pp-hud'},
+  {title:'🌐 무역으로 돈 벌기',
+   body:'<b>무역 탭</b>에서 원유·밀·반도체 등 8가지 자원을 사고팔 수 있습니다. 가격이 <b>쌀 때 사서 비쌀 때 팔면 이익!</b> 수출 수익은 매 턴 재정에 자동 반영됩니다.',
+   hi:null},
+  {title:'🤝 외교 — FTA가 핵심',
+   body:'<b>외교·전쟁 탭</b>에서 다른 나라와 관계를 맺으세요. <b>FTA(자유무역협정)</b>를 맺으면 매 턴 +18억 원 수익! 관계가 나빠지면 관세전쟁 → 군사전쟁으로 번질 수 있습니다.',
+   hi:null},
+  {title:'⚠️ 자연재해 — 반드시 대응하세요!',
+   body:'자연재해가 발생하면 <b>대응 방법 선택 창</b>이 뜹니다. 방치하면 매 턴 <b>재정 손실 + 지지율 하락</b>이 2배로 가속됩니다. 긴급 구호·재건 사업·국제 원조 중 하나를 반드시 선택하세요!',
+   hi:null},
+  {title:'⚔️ 전쟁 — 군사력이 중요',
+   body:'외교 탭에서 <b>선전포고</b>가 가능합니다. 전쟁 중에는 <b>전투 명령</b> 버튼으로 육군·해군·공군·특수무기를 선택해 싸우세요. 군사력이 적보다 높을수록 승률이 올라갑니다.',
+   hi:null},
+  {title:'▶ 다음 분기 버튼',
+   body:'모든 행동이 끝나면 우측 상단의 <b>▶ 다음 분기</b> 버튼을 눌러 턴을 진행하세요. AI 국가들도 능동적으로 행동하고, 경제 이벤트가 발생합니다.',
+   hi:'btn-nxt'},
+  {title:'🎯 목표 요약',
+   body:'✅ <b>지지율 10% 이상 유지</b> (탄핵 방지)<br>✅ <b>재정 흑자 유지</b> (정책 여력 확보)<br>✅ <b>FTA 체결</b>로 매 턴 수익 확보<br>✅ <b>재해·위기에 즉각 대응</b><br><br>행운을 빕니다! 🍀',
+   hi:null},
+];
+let _tutIdx=0,_tutHi=null;
+function showTutorial(){
+  _tutIdx=0; _tutHi=null;
+  document.getElementById('tut-overlay').classList.add('active');
+  renderTutStep();
+}
+function renderTutStep(){
+  const s=TUT_STEPS[_tutIdx];
+  document.getElementById('tut-step').textContent=`STEP ${_tutIdx+1} / ${TUT_STEPS.length}`;
+  document.getElementById('tut-title').textContent=s.title;
+  document.getElementById('tut-body').innerHTML=s.body;
+  document.getElementById('tut-dots').innerHTML=TUT_STEPS.map((_,i)=>`<div class="tut-dot${i===_tutIdx?' on':''}"></div>`).join('');
+  document.getElementById('tut-next').textContent=_tutIdx===TUT_STEPS.length-1?'시작하기! 🚀':'다음 →';
+  // 하이라이트
+  if(_tutHi){document.getElementById(_tutHi)?.classList.remove('tut-highlight');_tutHi=null;}
+  if(s.hi){const el=document.getElementById(s.hi);if(el){el.classList.add('tut-highlight');el.scrollIntoView({behavior:'smooth',block:'center'});_tutHi=s.hi;}}
+}
+function tutNext(){
+  if(_tutIdx<TUT_STEPS.length-1){_tutIdx++;renderTutStep();}
+  else{endTutorial();}
+}
+function endTutorial(){
+  if(_tutHi){document.getElementById(_tutHi)?.classList.remove('tut-highlight');_tutHi=null;}
+  document.getElementById('tut-overlay').classList.remove('active');
+}
+
 function startGame(cid){
   initGame(cid,_selMode);
   document.getElementById('sel').style.display='none';
@@ -2918,6 +3012,7 @@ function startGame(cid){
   document.getElementById('qb').textContent=G.infiniteMode?'Q1 Y1 / ∞':'Q1 Y1 / 40분기';
   renderAll();
   toast(`${P().flag} ${P().name} 재무장관 취임! 시민 지지율을 유지하세요.`,'good');
+  showTutorial();
 }
 buildSel();
 </script>
