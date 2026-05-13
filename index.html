@@ -590,14 +590,14 @@ const CTPL=[
   {id:'BRA',name:'브라질', flag:'🇧🇷',gdp:2100, unemp:8.5,infl:4.5,bal:20,  bud:2500, debt:90, gro:2.5,mil:40, desc:'자원 풍부 신흥국',str:'농산물·철강',bonus:'농산물 비용 -40%'},
 ];
 const GOODS=[
-  {id:'oil',  name:'원유',   emoji:'🛢', base:90,    unit:'배럴'},
-  {id:'wheat',name:'밀',     emoji:'🌾', base:320,   unit:'톤'},
-  {id:'steel',name:'철강',   emoji:'⚙️', base:800,   unit:'톤'},
-  {id:'semi', name:'반도체', emoji:'💾', base:5000,  unit:'개'},
-  {id:'car',  name:'자동차', emoji:'🚗', base:30000, unit:'대'},
-  {id:'pharma',name:'의약품',emoji:'💊', base:2000,  unit:'박스'},
-  {id:'rare', name:'희토류', emoji:'✨', base:1500,  unit:'kg'},
-  {id:'agri', name:'농산물', emoji:'🥬', base:200,   unit:'톤'},
+  {id:'oil',  name:'원유',   emoji:'🛢', base:15,   unit:'배럴'},
+  {id:'wheat',name:'밀',     emoji:'🌾', base:50,   unit:'톤'},
+  {id:'steel',name:'철강',   emoji:'⚙️', base:120,  unit:'톤'},
+  {id:'semi', name:'반도체', emoji:'💾', base:600,  unit:'개'},
+  {id:'car',  name:'자동차', emoji:'🚗', base:3500, unit:'대'},
+  {id:'pharma',name:'의약품',emoji:'💊', base:280,  unit:'박스'},
+  {id:'rare', name:'희토류', emoji:'✨', base:200,  unit:'kg'},
+  {id:'agri', name:'농산물', emoji:'🥬', base:30,   unit:'톤'},
 ];
 const PM={
   KOR:{oil:1.3,wheat:1.1,steel:1.0,semi:0.7, car:0.85,pharma:1.0,rare:1.2,agri:1.1},
@@ -1732,21 +1732,27 @@ function doClimate(){
     const d=cl.disaster;
     const r=cl.disResponse;
     // 대응 미선택 시 피해 가중
-    const damageMul=r?r.damageMul:1.5;
+    const damageMul=r?r.damageMul:2.0;
     const recoverMul=r?r.recoverMul:0;
     cl.disTurns--;
     p.gro+=(d.fx.gro||0)*damageMul;
-    if(d.fx.bud)p.bud+=d.fx.bud*damageMul*.4;
-    if(d.fx.infl)p.infl=Math.max(0,p.infl+(d.fx.infl||0)*.3);
-    if(d.fx.unemp)p.unemp=Math.max(.5,p.unemp+(d.fx.unemp||0)*.3);
-    G.approval=Math.max(0,G.approval+(d.appFx||0)/d.dur*(r?0.5:1));
+    if(d.fx.bud)p.bud+=d.fx.bud*damageMul*.6;
+    if(d.fx.infl)p.infl=Math.max(0,p.infl+(d.fx.infl||0)*.4);
+    if(d.fx.unemp)p.unemp=Math.max(.5,p.unemp+(d.fx.unemp||0)*.4);
+    G.approval=Math.max(0,G.approval+(d.appFx||0)/d.dur*(r?0.4:1.5));
+    // 미대응 추가 패널티
+    if(!r){
+      const extraBud=Math.round(80+Math.random()*120);
+      p.bud-=extraBud;
+      G.evLog.unshift({text:`⚠️ 재해 미대응 — 피해 확산! 추가 손실 $${extraBud}억 원, 지지율 추가 하락`,type:'bad',turn:G.turn});
+    }
     // 복구 효과 (선택한 경우)
     if(r&&recoverMul>0){p.gro+=recoverMul;p.bud+=r.budPerTurn||0;}
     if(cl.disTurns<=0){
-      G.evLog.unshift({text:`✅ ${d.icon} ${d.name} 종료. ${r?r.endMsg:'자연 복구 완료.'}`,type:'good',turn:G.turn});
+      G.evLog.unshift({text:`✅ ${d.icon} ${d.name} 종료. ${r?r.endMsg:'방치로 인한 자연 복구 완료.'}`,type:'good',turn:G.turn});
       cl.disaster=null; cl.disResponse=null;
     }else{
-      G.evLog.unshift({text:`${d.icon} [재해 ${d.dur-cl.disTurns+1}/${d.dur}턴] ${d.name} 지속${r?' — '+r.name+' 대응 중':''}`,type:'bad',turn:G.turn});
+      G.evLog.unshift({text:`${d.icon} [재해 ${d.dur-cl.disTurns+1}/${d.dur}턴] ${d.name} 지속${r?' — '+r.name+' 대응 중':' — ⚠️ 미대응!'}`,type:'bad',turn:G.turn});
     }
     return;
   }
