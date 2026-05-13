@@ -562,8 +562,8 @@ button{cursor:pointer;}
     <div id="tut-body"></div>
     <div id="tut-dots"></div>
     <div id="tut-btns">
-      <button class="tut-btn skip" onclick="endTutorial()">건너뛰기</button>
-      <button class="tut-btn next" id="tut-next" onclick="tutNext()">다음 →</button>
+      <button class="tut-btn skip" id="tut-skip">건너뛰기</button>
+      <button class="tut-btn next" id="tut-next">다음 →</button>
     </div>
   </div>
 </div>
@@ -2979,11 +2979,19 @@ const TUT_STEPS=[
    body:'✅ <b>지지율 10% 이상 유지</b> (탄핵 방지)<br>✅ <b>재정 흑자 유지</b> (정책 여력 확보)<br>✅ <b>FTA 체결</b>로 매 턴 수익 확보<br>✅ <b>재해·위기에 즉각 대응</b><br><br>행운을 빕니다! 🍀',
    hi:null},
 ];
-let _tutIdx=0,_tutHi=null;
+let _tutIdx=0,_tutHi=null,_tutReady=false;
 function showTutorial(){
   _tutIdx=0; _tutHi=null;
   document.getElementById('tut-overlay').classList.add('active');
   renderTutStep();
+  if(!_tutReady){
+    _tutReady=true;
+    document.getElementById('tut-skip').addEventListener('click',function(){endTutorial();});
+    document.getElementById('tut-next').addEventListener('click',function(){
+      if(_tutIdx<TUT_STEPS.length-1){_tutIdx++;renderTutStep();}
+      else{endTutorial();}
+    });
+  }
 }
 function renderTutStep(){
   const s=TUT_STEPS[_tutIdx];
@@ -2992,13 +3000,8 @@ function renderTutStep(){
   document.getElementById('tut-body').innerHTML=s.body;
   document.getElementById('tut-dots').innerHTML=TUT_STEPS.map((_,i)=>`<div class="tut-dot${i===_tutIdx?' on':''}"></div>`).join('');
   document.getElementById('tut-next').textContent=_tutIdx===TUT_STEPS.length-1?'시작하기! 🚀':'다음 →';
-  // 하이라이트
   if(_tutHi){document.getElementById(_tutHi)?.classList.remove('tut-highlight');_tutHi=null;}
   if(s.hi){const el=document.getElementById(s.hi);if(el){el.classList.add('tut-highlight');el.scrollIntoView({behavior:'smooth',block:'center'});_tutHi=s.hi;}}
-}
-function tutNext(){
-  if(_tutIdx<TUT_STEPS.length-1){_tutIdx++;renderTutStep();}
-  else{endTutorial();}
 }
 function endTutorial(){
   if(_tutHi){document.getElementById(_tutHi)?.classList.remove('tut-highlight');_tutHi=null;}
