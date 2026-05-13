@@ -1330,11 +1330,11 @@ function checkEscalation(){
         logDiplo(`⚔️ ${c.flag} ${c.name}이 군사전쟁 선포!`,'bad');
         G.evLog.unshift({text:`🚨 ${c.flag} ${c.name}이 선전포고! 전쟁 발발!`,type:'bad',turn:G.turn});
         G.approval=Math.max(0,G.approval-10);
-        toast(`🚨 ${c.flag} ${c.name}이 선전포고!`,'bad');
         // 제3국 반응
         AI().filter(x=>x.id!==c.id&&x.relation!=='military_war').forEach(x=>{
           if(Math.random()<0.4){x.mood-=15;addReaction(x,'sanction');}
         });
+        showEnemyWarDeclaration(c, ()=>{ renderAll(); });
       }
     }
     // AI 자체적 무드 변화
@@ -1572,6 +1572,85 @@ function showWarDeclaration(c, onConfirm, onCancel){
     ov.classList.remove('active');
     if(onCancel) onCancel();
   };
+}
+function showEnemyWarDeclaration(c, onClose){
+  const STEPS=[
+    `적국 동향 포착 — 이상 징후 감지`,
+    `${c.flag} ${c.name} 병력 동원 확인`,
+    `전방 기지 적군 집결 — 경보 발령`,
+    `공군 전력 이동 포착 — 스크램블 대기`,
+    `해상 봉쇄 선박 식별 — 함대 출항`,
+    `미사일 기지 활성화 신호 탐지`,
+    `외교 채널 전면 단절`,
+    `국경 무력 충돌 발생 — 교전 개시`,
+    `비상 대피령 발동 — 전시 체제 전환`,
+    `🚨 적국의 선전포고 수신!`,
+  ];
+  const ov=document.getElementById('wardecl-overlay');
+  const stepsEl=document.getElementById('wardecl-steps');
+  const fill=document.getElementById('wardecl-fill');
+  const pct=document.getElementById('wardecl-pct');
+  const phaseWrap=document.getElementById('wardecl-phase-wrap');
+  const finalEl=document.getElementById('wardecl-final');
+
+  document.getElementById('wardecl-header').textContent=`[ 긴급 경보 — ${c.name} 침략 ]`;
+  // 적이 공격: 색상을 더 붉게
+  fill.style.background='#ff4444';
+  document.getElementById('wardecl-flag').textContent=c.flag;
+  document.getElementById('wardecl-main').textContent='전쟁 발발';
+  document.getElementById('wardecl-sub').textContent=`${c.flag} ${c.name}`;
+  document.getElementById('wardecl-vs').textContent='적국의 선전포고를 받았습니다!';
+  stepsEl.innerHTML=STEPS.map((s,i)=>`<div class="wdstep" id="wds-${i}"><span class="wdn">${String(i+1).padStart(2,'0')}</span><span>${s}</span></div>`).join('');
+  fill.style.transition='none'; fill.style.width='0%';
+  fill.offsetHeight; fill.style.transition='width .5s ease';
+  pct.textContent='0 / 10';
+  phaseWrap.style.display='block';
+  finalEl.style.display='none';
+  finalEl.style.animation='none';
+  // 확인 버튼만 (취소 없음)
+  document.getElementById('wardecl-confirm').textContent='⚔️ 전투 준비';
+  document.getElementById('wardecl-cancel').style.display='none';
+  ov.classList.add('active');
+
+  let cur=0;
+  const DELAY=750;
+  function tick(){
+    if(cur>0){
+      const prev=document.getElementById(`wds-${cur-1}`);
+      if(prev){prev.classList.remove('act');prev.classList.add('done');}
+    }
+    if(cur>=STEPS.length){
+      setTimeout(()=>{
+        phaseWrap.style.display='none';
+        finalEl.style.display='block';
+        finalEl.style.animation='';
+        void finalEl.offsetWidth;
+        finalEl.style.animation='wdf-burst .7s cubic-bezier(.2,.8,.3,1.3) forwards';
+        document.body.style.animation='war-shake .8s ease';
+        setTimeout(()=>{document.body.style.animation='';},800);
+      },300);
+      return;
+    }
+    const el=document.getElementById(`wds-${cur}`);
+    if(el){el.classList.add('act');}
+    fill.style.width=`${((cur+1)/STEPS.length)*100}%`;
+    pct.textContent=`${cur+1} / 10`;
+    cur++;
+    setTimeout(tick, cur===STEPS.length?1200:DELAY);
+  }
+  setTimeout(tick,300);
+
+  document.getElementById('wardecl-confirm').onclick=()=>{
+    // 버튼 원상복구
+    document.getElementById('wardecl-confirm').textContent='⚔️ 선전포고';
+    document.getElementById('wardecl-cancel').style.display='';
+    document.getElementById('wardecl-main').textContent='선전포고';
+    document.getElementById('wardecl-vs').textContent='전쟁을 선포하시겠습니까?';
+    fill.style.background='';
+    ov.classList.remove('active');
+    if(onClose) onClose();
+  };
+  document.getElementById('wardecl-cancel').onclick=null;
 }
 function declareMilWar(cid){
   const c=C(cid);
