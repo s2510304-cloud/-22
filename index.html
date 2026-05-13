@@ -302,8 +302,8 @@ button{cursor:pointer;}
 .dis-box h4{color:var(--re);font-size:13px;margin-bottom:3px;}
 .dis-box p{font-size:11px;color:rgba(255,180,180,.85);line-height:1.5;}
 /* TUTORIAL */
-#tut-overlay{position:fixed;inset:0;z-index:9900;pointer-events:none;}
-#tut-overlay.active{pointer-events:all;}
+#tut-overlay{position:fixed;inset:0;z-index:9900;pointer-events:none;display:none;}
+#tut-overlay.active{pointer-events:all;display:block;}
 #tut-dim{position:absolute;inset:0;background:rgba(0,0,0,.7);transition:opacity .3s;pointer-events:none;}
 #tut-box{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);width:min(520px,92vw);background:var(--panel);border:2px solid var(--ac);border-radius:16px;padding:22px 24px;box-shadow:0 0 40px rgba(108,99,255,.4);animation:tut-in .3s ease;pointer-events:all;z-index:1;}
 @keyframes tut-in{from{opacity:0;transform:translateX(-50%) translateY(16px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
