@@ -1383,6 +1383,19 @@ function nextQ(){
   p.gro=Math.max(-5,Math.min(8,p.gro));
   p.gdp=Math.max(100,p.gdp*(1+p.gro/400));
   p.bal+=(G.totExp-G.totImp)/10;
+  // 무역 수익: 매 턴 재정 반영
+  const _expRev = Math.round(G.totExp * 9);   // 수출 총액의 9% 마진
+  const _impCost = Math.round(G.totImp * 4);  // 수입 총액의 4% 관세·물류비
+  const _ftaBonus = AI().filter(c=>c.relation==='deal').length * 18; // FTA 1개국당 +18억
+  const _tradeNet = _expRev - _impCost + _ftaBonus;
+  if(_tradeNet!==0){
+    p.bud=Math.max(0,p.bud+_tradeNet);
+    const _parts=[];
+    if(_expRev>0) _parts.push(`수출 +$${_expRev}억`);
+    if(_impCost>0) _parts.push(`수입비 -$${_impCost}억`);
+    if(_ftaBonus>0) _parts.push(`FTA +$${_ftaBonus}억`);
+    G.evLog.unshift({text:`📦 무역수익 ${_parts.join(' | ')} → 순 ${_tradeNet>=0?'+':''}${_tradeNet}억 재정 반영`,type:_tradeNet>=0?'good':'bad',turn:G.turn});
+  }
   G.totExp=0; G.totImp=0;
   p.debt+=Math.random()*.3;
 
