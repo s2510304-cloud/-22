@@ -300,6 +300,16 @@ button{cursor:pointer;}
 .dis-box{background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.3);border-radius:9px;padding:10px 13px;margin-bottom:11px;display:none;animation:pr 1.4s infinite;}
 .dis-box h4{color:var(--re);font-size:13px;margin-bottom:3px;}
 .dis-box p{font-size:11px;color:rgba(255,180,180,.85);line-height:1.5;}
+/* DISASTER RESPONSE MODAL */
+#dis-modal{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:16px;}
+#dis-modal.open{display:flex;}
+#dis-mbox{background:var(--panel);border:2px solid rgba(255,68,68,.5);border-radius:16px;max-width:580px;width:100%;padding:22px;max-height:90vh;overflow-y:auto;}
+.dis-resp{background:var(--p2);border:1px solid var(--bd);border-radius:10px;padding:13px;margin-bottom:8px;cursor:pointer;transition:all .15s;display:flex;gap:12px;align-items:flex-start;}
+.dis-resp:hover{border-color:var(--wa);background:rgba(255,152,0,.07);}
+.dis-resp .dr-icon{font-size:24px;flex-shrink:0;}
+.dis-resp .dr-name{font-size:13px;font-weight:800;margin-bottom:3px;}
+.dis-resp .dr-desc{font-size:11px;color:var(--mu);line-height:1.4;}
+.dis-resp .dr-cost{font-size:11px;color:var(--re);font-weight:700;margin-top:5px;}
 /* ELECTION */
 .elec-box{background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.35);border-radius:9px;padding:10px 13px;margin-bottom:11px;display:none;}
 .elec-box h4{color:var(--ac);font-size:13px;margin-bottom:3px;}
@@ -521,6 +531,21 @@ button{cursor:pointer;}
   <div class="wo-title" id="wo-title"></div>
   <div class="wo-sub" id="wo-sub"></div>
   <div class="wo-skip">클릭하여 닫기</div>
+</div>
+
+<!-- DISASTER RESPONSE MODAL -->
+<div id="dis-modal">
+  <div id="dis-mbox">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span id="dis-m-icon" style="font-size:32px"></span>
+      <div>
+        <div id="dis-m-name" style="font-size:18px;font-weight:900;color:var(--re)"></div>
+        <div id="dis-m-desc" style="font-size:11px;color:var(--mu);margin-top:2px"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--wa);margin-bottom:14px;padding:7px 10px;background:rgba(255,152,0,.1);border-radius:7px">⚠️ 재해 대응 방식을 선택하세요. 선택에 따라 피해 규모와 복구 속도가 달라집니다.</div>
+    <div id="dis-m-opts"></div>
+  </div>
 </div>
 
 <!-- WAR DECLARATION CINEMATIC -->
@@ -929,7 +954,7 @@ function initGame(pid,mode){
     approval:65,prevApp:65,
     gameOver:false,
     election:{next:16},
-    climate:{temp:.8,rain:58,poll:20,disaster:null,disTurns:0,log:[]},
+    climate:{temp:.8,rain:58,poll:20,disaster:null,disTurns:0,disResponse:null,log:[]},
     spyAgents:3,spyLog:[],spyCI:15,spyBoost:0,
     pendingProposals:[],
     civilWar:{active:false,stage:0,turns:0},
@@ -1702,16 +1727,24 @@ function doClimate(){
   cl.rain=Math.max(0,Math.min(100,cl.rain+(Math.random()-.5)*14));
   cl.poll=Math.max(0,Math.min(100,cl.poll+Math.max(0,p.gro)*.4+(Math.random()-.58)*2));
   if(cl.disaster){
-    const d=cl.disaster; cl.disTurns--;
-    p.gro+=(d.fx.gro||0);
-    if(d.fx.bud)p.bud+=d.fx.bud*.4;
+    const d=cl.disaster;
+    const r=cl.disResponse;
+    // 대응 미선택 시 피해 가중
+    const damageMul=r?r.damageMul:1.5;
+    const recoverMul=r?r.recoverMul:0;
+    cl.disTurns--;
+    p.gro+=(d.fx.gro||0)*damageMul;
+    if(d.fx.bud)p.bud+=d.fx.bud*damageMul*.4;
     if(d.fx.infl)p.infl=Math.max(0,p.infl+(d.fx.infl||0)*.3);
     if(d.fx.unemp)p.unemp=Math.max(.5,p.unemp+(d.fx.unemp||0)*.3);
-    if(d.fx.bal)p.bal+=d.fx.bal*.3;
-    G.approval=Math.max(0,G.approval+(d.appFx||0)/d.dur);
+    G.approval=Math.max(0,G.approval+(d.appFx||0)/d.dur*(r?0.5:1));
+    // 복구 효과 (선택한 경우)
+    if(r&&recoverMul>0){p.gro+=recoverMul;p.bud+=r.budPerTurn||0;}
     if(cl.disTurns<=0){
-      G.evLog.unshift({text:`✅ ${d.icon} ${d.name} 종료. 경제 회복 중.`,type:'good',turn:G.turn});
-      cl.disaster=null;
+      G.evLog.unshift({text:`✅ ${d.icon} ${d.name} 종료. ${r?r.endMsg:'자연 복구 완료.'}`,type:'good',turn:G.turn});
+      cl.disaster=null; cl.disResponse=null;
+    }else{
+      G.evLog.unshift({text:`${d.icon} [재해 ${d.dur-cl.disTurns+1}/${d.dur}턴] ${d.name} 지속${r?' — '+r.name+' 대응 중':''}`,type:'bad',turn:G.turn});
     }
     return;
   }
@@ -1725,7 +1758,7 @@ function doClimate(){
     else if(d.condType==='temp'&&d.condLt&&cl.temp<d.condVal&&Math.random()<.25) hit=true;
     else if(d.condType==='poll'&&d.condGt&&cl.poll>d.condVal&&Math.random()<.28) hit=true;
     if(hit){
-      cl.disaster=d; cl.disTurns=d.dur;
+      cl.disaster=d; cl.disTurns=d.dur; cl.disResponse=null;
       p.gro+=(d.fx.gro||0)*1.3;
       if(d.fx.bud)p.bud+=d.fx.bud;
       if(d.fx.infl)p.infl=Math.max(0,p.infl+(d.fx.infl||0));
@@ -1737,11 +1770,70 @@ function doClimate(){
       if(cl.log.length>15)cl.log.pop();
       G.evLog.unshift({text:`🚨 자연재해! ${d.icon} ${d.name} — ${d.desc}`,type:'bad',turn:G.turn});
       toast(`🚨 ${d.icon} ${d.name} 발생!`,'bad');
+      showDisasterModal(d);
       break;
     }
   }
   if(cl.poll>60){p.gro-=.25;G.approval=Math.max(0,G.approval-1);}
   if(cl.temp>1.8){p.gro-=.15;}
+}
+
+const DIS_RESPONSES=[
+  {id:'relief',  icon:'🚁', name:'긴급 구호 작전',
+   desc:'헬기·구조대 긴급 투입. 인명 피해 최소화, 지지율 회복.',
+   cost:180, appBonus:+12, damageMul:0.3, recoverMul:+0.4, budPerTurn:0,
+   endMsg:'긴급 구호 완료. 빠른 복구로 국민 신뢰 회복.',
+   req:{}},
+  {id:'rebuild', icon:'🏗️', name:'대규모 재건 사업',
+   desc:'피해 지역 인프라 전면 재건. 중장기 경제 회복.',
+   cost:320, appBonus:+6, damageMul:0.4, recoverMul:+0.6, budPerTurn:+20,
+   endMsg:'재건 사업 완료. 인프라 강화로 성장 동력 확보.',
+   req:{}},
+  {id:'aid',     icon:'🌐', name:'국제 원조 요청',
+   desc:'UN·우방국에 지원 요청. 비용 없이 일부 지원 수령.',
+   cost:0,   appBonus:+3, damageMul:0.7, recoverMul:+0.2, budPerTurn:+35,
+   endMsg:'국제 지원으로 피해 일부 복구.',
+   req:{}},
+  {id:'ignore',  icon:'⏳', name:'자연 복구 대기',
+   desc:'별도 조치 없이 자연 회복을 기다림. 피해 누적 위험.',
+   cost:0,   appBonus:-5, damageMul:1.5, recoverMul:0,   budPerTurn:0,
+   endMsg:'자연 복구 완료. 별다른 조치 없이 종료.',
+   req:{}},
+];
+function showDisasterModal(d){
+  const p=P();
+  document.getElementById('dis-m-icon').textContent=d.icon;
+  document.getElementById('dis-m-name').textContent=d.name;
+  document.getElementById('dis-m-desc').textContent=d.desc;
+  const opts=document.getElementById('dis-m-opts');
+  opts.innerHTML=DIS_RESPONSES.map(r=>`
+    <div class="dis-resp" onclick="chooseDisResponse('${r.id}')">
+      <div class="dr-icon">${r.icon}</div>
+      <div style="flex:1">
+        <div class="dr-name">${r.name}</div>
+        <div class="dr-desc">${r.desc}</div>
+        <div style="display:flex;gap:10px;margin-top:5px;flex-wrap:wrap;font-size:10px">
+          ${r.cost>0?`<span style="color:var(--re)">💰 $${r.cost}억 필요</span>`:'<span style="color:var(--gr)">💰 무료</span>'}
+          <span style="color:${r.appBonus>=0?'var(--gr)':'var(--re)'}">지지율 ${r.appBonus>=0?'+':''}${r.appBonus}%</span>
+          <span style="color:var(--mu)">피해 ${Math.round(r.damageMul*100)}%</span>
+          ${r.budPerTurn>0?`<span style="color:var(--gr)">턴당 +$${r.budPerTurn}억</span>`:''}
+        </div>
+        ${r.cost>0&&p.bud<r.cost?'<div style="font-size:10px;color:var(--re);margin-top:4px">⚠️ 재정 부족</div>':''}
+      </div>
+    </div>`).join('');
+  document.getElementById('dis-modal').classList.add('open');
+}
+function chooseDisResponse(rid){
+  const r=DIS_RESPONSES.find(x=>x.id===rid);
+  const p=P();
+  if(r.cost>0&&p.bud<r.cost){toast('재정 부족으로 해당 조치 불가','bad');return;}
+  if(r.cost>0) p.bud-=r.cost;
+  G.climate.disResponse=r;
+  G.approval=Math.min(100,G.approval+r.appBonus);
+  G.evLog.unshift({text:`${r.icon} 재해 대응: ${r.name} 선택. 비용 $${r.cost}억.`,type:r.appBonus>=0?'good':'bad',turn:G.turn});
+  toast(`${r.icon} ${r.name} 시행!`,r.appBonus>=0?'good':'warn');
+  document.getElementById('dis-modal').classList.remove('open');
+  renderAll();
 }
 
 // ══════════════════════════════════════════════════════
@@ -2412,8 +2504,15 @@ function renderClimate(elId){
 function renderDisBox(){
   const el=document.getElementById('dis-box');if(!el)return;
   const cl=G.climate;
-  if(cl.disaster){el.style.display='block';el.innerHTML=`<h4>${cl.disaster.icon} ${cl.disaster.name} 진행 중 (${cl.disTurns}분기 남음)</h4><p>${cl.disaster.desc}</p>`;}
-  else el.style.display='none';
+  if(cl.disaster){
+    el.style.display='block';
+    const r=cl.disResponse;
+    el.innerHTML=`<h4>${cl.disaster.icon} ${cl.disaster.name} 진행 중 (${cl.disTurns}분기 남음)</h4>
+      <p>${cl.disaster.desc}</p>
+      ${r?`<p style="color:var(--go);margin-top:4px;font-size:11px">✅ 대응: ${r.icon} ${r.name}</p>`
+         :`<p style="color:var(--re);margin-top:4px;font-size:11px;font-weight:700">⚠️ 대응 미선택 — 피해 가중 중!</p>
+           <button onclick="showDisasterModal(G.climate.disaster)" style="margin-top:6px;background:var(--re);border:none;border-radius:6px;padding:5px 12px;color:#fff;font-size:11px;font-weight:700;cursor:pointer">대응 방법 선택</button>`}`;
+  }else el.style.display='none';
 }
 function renderElecBox(){
   const el=document.getElementById('elec-box');if(!el)return;
