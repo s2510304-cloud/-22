@@ -266,6 +266,33 @@ button{cursor:pointer;}
 .wcmd-confirm{width:100%;padding:12px;margin-top:16px;background:var(--re);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:900;cursor:pointer;letter-spacing:1px;}
 .wcmd-confirm:hover{background:#ff2222;}
 .wcmd-cancel{width:100%;padding:8px;margin-top:6px;background:transparent;color:var(--mu);border:1px solid var(--bd);border-radius:8px;font-size:12px;cursor:pointer;}
+/* WAR DECLARATION CINEMATIC */
+#wardecl-overlay{position:fixed;inset:0;z-index:9650;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;font-family:'Courier New',monospace;}
+#wardecl-overlay.active{display:flex;}
+#wardecl-scanline{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,0,.018) 2px,rgba(0,255,0,.018) 4px);pointer-events:none;animation:scanmove 8s linear infinite;}
+@keyframes scanmove{0%{background-position:0 0;}100%{background-position:0 400px;}}
+#wardecl-phase-wrap{width:100%;max-width:640px;padding:32px 40px;}
+#wardecl-header{font-size:11px;color:#00ff41;letter-spacing:4px;margin-bottom:28px;text-align:center;opacity:.8;}
+#wardecl-steps{display:flex;flex-direction:column;gap:5px;min-height:240px;}
+.wdstep{font-size:13px;color:transparent;display:flex;align-items:center;gap:12px;padding:5px 12px;border-left:2px solid rgba(0,255,65,.08);transition:color .25s,border-color .25s,text-shadow .25s;}
+.wdstep.done{color:rgba(0,255,65,.45);border-left-color:rgba(0,255,65,.25);}
+.wdstep.act{color:#00ff41;border-left-color:#00ff41;text-shadow:0 0 12px rgba(0,255,65,.7);}
+.wdstep .wdn{width:22px;font-size:10px;color:rgba(0,255,65,.4);flex-shrink:0;letter-spacing:1px;}
+.wdstep.act .wdn{color:#00ff41;}
+#wardecl-bar{margin-top:18px;height:2px;background:rgba(0,255,65,.12);border-radius:1px;overflow:hidden;}
+#wardecl-fill{height:2px;background:#00ff41;width:0%;transition:width .5s ease;box-shadow:0 0 10px rgba(0,255,65,.9);}
+#wardecl-pct{font-size:10px;color:rgba(0,255,65,.5);letter-spacing:2px;margin-top:6px;text-align:right;}
+#wardecl-final{display:none;text-align:center;width:100%;max-width:540px;padding:28px;animation:wdf-burst .7s cubic-bezier(.2,.8,.3,1.3) forwards;}
+@keyframes wdf-burst{0%{opacity:0;transform:scale(.6);}60%{opacity:1;transform:scale(1.06);}100%{opacity:1;transform:scale(1);}}
+#wardecl-flag{font-size:70px;margin-bottom:14px;display:block;animation:wdf-flag 1s ease infinite alternate;}
+@keyframes wdf-flag{0%{text-shadow:0 0 20px rgba(255,68,68,.3);}100%{text-shadow:0 0 50px rgba(255,68,68,.9);}}
+#wardecl-main{font-size:40px;font-weight:900;color:#ff4444;letter-spacing:6px;text-shadow:0 0 40px rgba(255,68,68,.8);font-family:'Segoe UI',sans-serif;margin-bottom:6px;}
+#wardecl-sub{font-size:13px;color:var(--mu);margin-bottom:6px;letter-spacing:1px;}
+#wardecl-vs{font-size:11px;color:rgba(255,68,68,.6);letter-spacing:3px;margin-bottom:26px;}
+.wdf-btn{padding:12px 30px;border-radius:9px;font-size:13px;font-weight:800;cursor:pointer;border:none;letter-spacing:2px;transition:all .15s;}
+.wdf-btn.go{background:var(--re);color:#fff;box-shadow:0 0 18px rgba(255,68,68,.5);}
+.wdf-btn.go:hover{background:#ff2222;box-shadow:0 0 30px rgba(255,68,68,.8);}
+.wdf-btn.no{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--mu);margin-left:10px;}
 /* CLIMATE */
 .clm-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd);font-size:12px;}
 .clm-bar{height:5px;background:var(--bd);border-radius:3px;margin:2px 0 5px;}
@@ -494,6 +521,25 @@ button{cursor:pointer;}
   <div class="wo-title" id="wo-title"></div>
   <div class="wo-sub" id="wo-sub"></div>
   <div class="wo-skip">클릭하여 닫기</div>
+</div>
+
+<!-- WAR DECLARATION CINEMATIC -->
+<div id="wardecl-overlay">
+  <div id="wardecl-scanline"></div>
+  <div id="wardecl-phase-wrap">
+    <div id="wardecl-header">[ 기밀 작전 계획 ]</div>
+    <div id="wardecl-steps"></div>
+    <div id="wardecl-bar"><div id="wardecl-fill"></div></div>
+    <div id="wardecl-pct">0 / 10</div>
+  </div>
+  <div id="wardecl-final">
+    <span id="wardecl-flag">🏳️</span>
+    <div id="wardecl-main">선전포고</div>
+    <div id="wardecl-sub"></div>
+    <div id="wardecl-vs">전쟁을 선포하시겠습니까?</div>
+    <button class="wdf-btn go" id="wardecl-confirm">⚔️ 선전포고</button>
+    <button class="wdf-btn no" id="wardecl-cancel">취소</button>
+  </div>
 </div>
 
 <!-- WAR COMMAND MODAL -->
@@ -1455,16 +1501,89 @@ function declareTariffWar(cid){
   AI().filter(x=>x.id!==cid&&Math.random()<0.3).forEach(x=>{x.mood-=10;});
   toast(`${c.flag} ${c.name}과 관세전쟁!`,'bad');renderAll();
 }
+function showWarDeclaration(c, onConfirm, onCancel){
+  const STEPS=[
+    `기밀 작전 개시 — 지휘부 긴급 소집`,
+    `${c.flag} ${c.name} 군사력·전력 분석 완료`,
+    `병력 동원령 발동 — 예비군 전원 소집`,
+    `전방 기지 전개 — 병참 지원 시작`,
+    `공군 전투기 출격 대기 — 격납고 개방`,
+    `해군 함대 전진 배치 — 봉쇄 라인 구성`,
+    `전략 미사일 시스템 활성화`,
+    `동맹국 긴급 외교 통보 완료`,
+    `최고 사령관 최종 결재 대기중...`,
+    `⚔️ 선전포고 준비 완료 — 전쟁 개시 대기`,
+  ];
+  const ov=document.getElementById('wardecl-overlay');
+  const stepsEl=document.getElementById('wardecl-steps');
+  const fill=document.getElementById('wardecl-fill');
+  const pct=document.getElementById('wardecl-pct');
+  const phaseWrap=document.getElementById('wardecl-phase-wrap');
+  const finalEl=document.getElementById('wardecl-final');
+
+  document.getElementById('wardecl-header').textContent=`[ 기밀 작전 계획 — ${c.name} ]`;
+  document.getElementById('wardecl-flag').textContent=c.flag;
+  document.getElementById('wardecl-sub').textContent=`${c.flag} ${c.name}`;
+  stepsEl.innerHTML=STEPS.map((s,i)=>`<div class="wdstep" id="wds-${i}"><span class="wdn">${String(i+1).padStart(2,'0')}</span><span>${s}</span></div>`).join('');
+  fill.style.transition='none'; fill.style.width='0%';
+  fill.offsetHeight; fill.style.transition='width .5s ease';
+  pct.textContent='0 / 10';
+  phaseWrap.style.display='block';
+  finalEl.style.display='none';
+  finalEl.style.animation='none';
+  ov.classList.add('active');
+
+  let cur=0;
+  const DELAY=900;
+  function tick(){
+    if(cur>0){
+      const prev=document.getElementById(`wds-${cur-1}`);
+      if(prev){prev.classList.remove('act');prev.classList.add('done');}
+    }
+    if(cur>=STEPS.length){
+      // 최종 화면
+      setTimeout(()=>{
+        phaseWrap.style.display='none';
+        finalEl.style.display='block';
+        finalEl.style.animation='';
+        void finalEl.offsetWidth;
+        finalEl.style.animation='wdf-burst .7s cubic-bezier(.2,.8,.3,1.3) forwards';
+        document.body.style.animation='war-shake .5s ease';
+        setTimeout(()=>{document.body.style.animation='';},500);
+      },300);
+      return;
+    }
+    const el=document.getElementById(`wds-${cur}`);
+    if(el){el.classList.add('act');}
+    const prog=((cur+1)/STEPS.length)*100;
+    fill.style.width=prog+'%';
+    pct.textContent=`${cur+1} / 10`;
+    cur++;
+    const delay=cur===STEPS.length?1400:DELAY;
+    setTimeout(tick,delay);
+  }
+  setTimeout(tick,400);
+
+  document.getElementById('wardecl-confirm').onclick=()=>{
+    ov.classList.remove('active');
+    onConfirm();
+  };
+  document.getElementById('wardecl-cancel').onclick=()=>{
+    ov.classList.remove('active');
+    if(onCancel) onCancel();
+  };
+}
 function declareMilWar(cid){
   const c=C(cid);
-  if(!confirm(`⚠️ ${c.flag} ${c.name}에 군사전쟁을 선포하시겠습니까?\n전쟁은 GDP·재정·지지율에 심각한 피해를 줍니다.`))return;
-  c.relation='military_war';c.warTurns=0;c.mood=-100;
-  addReaction(c,'military_war_declared');
-  logDiplo(`⚔️ ${c.flag} ${c.name}에 군사전쟁 선포!`,'bad');
-  G.evLog.unshift({text:`🚨 ${c.flag} ${c.name}에 전쟁 선포!`,type:'bad',turn:G.turn});
-  G.approval=Math.max(0,G.approval-10);
-  AI().filter(x=>x.id!==cid).forEach(x=>{x.mood-=15;if(Math.random()<0.4)addReaction(x,'sanction');});
-  toast(`⚔️ ${c.flag} ${c.name}에 선전포고!`,'bad');renderAll();
+  showWarDeclaration(c, ()=>{
+    c.relation='military_war';c.warTurns=0;c.mood=-100;
+    addReaction(c,'military_war_declared');
+    logDiplo(`⚔️ ${c.flag} ${c.name}에 군사전쟁 선포!`,'bad');
+    G.evLog.unshift({text:`🚨 ${c.flag} ${c.name}에 전쟁 선포!`,type:'bad',turn:G.turn});
+    G.approval=Math.max(0,G.approval-10);
+    AI().filter(x=>x.id!==cid).forEach(x=>{x.mood-=15;if(Math.random()<0.4)addReaction(x,'sanction');});
+    toast(`⚔️ ${c.flag} ${c.name}에 선전포고!`,'bad');renderAll();
+  });
 }
 function peaceNegotiate(cid){
   const c=C(cid);const p=P();
