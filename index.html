@@ -1420,8 +1420,8 @@ function nextQ(){
   aiActiveActions();
   recalcApproval();
   if(G.turn>=G.election.next&&!G.gameOver){doElection();if(G.gameOver)return;}
-  if(G.approval<=20){endGame('protest');return;}
-  if(G.approval<=30)toast(`⚠️ 지지율 ${G.approval}%! 탄핵 위기!`,'warn');
+  if(G.approval<=10){endGame('protest');return;}
+  if(G.approval<=20)toast(`⚠️ 지지율 ${G.approval}%! 내전·탄핵 위기!`,'warn');
 
   const qLabel=`Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)}`;
   const maxLabel=G.infiniteMode?'∞':`${G.maxTurns}분기`;
@@ -1832,8 +1832,8 @@ function doCivilWar(){
 
   // 내전 발생 판정
   const warCount=AI().filter(c=>c.relation==='military_war').length;
-  const trigger=G.approval<32&&(p.unemp>12||p.infl>9||warCount>=2);
-  if(trigger&&Math.random()<0.18){
+  const trigger=G.approval<42&&(p.unemp>7||p.infl>6||warCount>=1);
+  if(trigger&&Math.random()<0.32){
     cw.active=true; cw.stage=0; cw.turns=6;
     G.evLog.unshift({text:`🔥 내전 발발! 시민 무장 세력이 수도를 위협합니다.`,type:'bad',turn:G.turn});
     G.climate.log.unshift({text:`🔥 내전 발발 — 사회 붕괴 위기`,turn:G.turn});
