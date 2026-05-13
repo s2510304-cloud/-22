@@ -241,6 +241,31 @@ button{cursor:pointer;}
 .port-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);}
 .spark{display:flex;align-items:flex-end;gap:1px;height:24px;}
 .spark-bar{width:5px;border-radius:2px 2px 0 0;min-height:2px;transition:height .3s;}
+/* WAR COMMAND MODAL */
+#warcmd-modal{position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;padding:16px;}
+#warcmd-modal.open{display:flex;}
+#warcmd-box{background:var(--panel);border:2px solid rgba(255,68,68,.4);border-radius:16px;max-width:720px;width:100%;max-height:90vh;overflow-y:auto;padding:22px;}
+#warcmd-box h2{font-size:18px;font-weight:900;color:var(--re);margin-bottom:4px;}
+#warcmd-box p{font-size:12px;color:var(--mu);margin-bottom:16px;}
+.wcmd-branch{margin-bottom:18px;}
+.wcmd-branch-title{font-size:11px;font-weight:800;letter-spacing:2px;color:var(--mu);text-transform:uppercase;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--bd);}
+.wcmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
+.wcmd-card{background:var(--p2);border:2px solid var(--bd);border-radius:10px;padding:11px;cursor:pointer;transition:all .18s;position:relative;}
+.wcmd-card:hover:not(.disabled){border-color:var(--re);background:rgba(255,68,68,.08);transform:translateY(-2px);}
+.wcmd-card.selected{border-color:#ffd700;background:rgba(255,215,0,.08);}
+.wcmd-card.disabled{opacity:.4;cursor:not-allowed;}
+.wcmd-icon{font-size:26px;margin-bottom:4px;}
+.wcmd-name{font-size:12px;font-weight:800;margin-bottom:2px;}
+.wcmd-desc{font-size:10px;color:var(--mu);line-height:1.4;margin-bottom:6px;}
+.wcmd-stats{display:flex;gap:4px;flex-wrap:wrap;}
+.wcmd-tag{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:700;}
+.wcmd-tag.atk{background:rgba(255,68,68,.2);color:#ff6b6b;}
+.wcmd-tag.eco{background:rgba(255,165,0,.2);color:#ffa500;}
+.wcmd-tag.def{background:rgba(0,230,118,.2);color:var(--go);}
+.wcmd-tag.cost{background:rgba(150,150,150,.15);color:var(--mu);}
+.wcmd-confirm{width:100%;padding:12px;margin-top:16px;background:var(--re);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:900;cursor:pointer;letter-spacing:1px;}
+.wcmd-confirm:hover{background:#ff2222;}
+.wcmd-cancel{width:100%;padding:8px;margin-top:6px;background:transparent;color:var(--mu);border:1px solid var(--bd);border-radius:8px;font-size:12px;cursor:pointer;}
 /* CLIMATE */
 .clm-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd);font-size:12px;}
 .clm-bar{height:5px;background:var(--bd);border-radius:3px;margin:2px 0 5px;}
@@ -469,6 +494,11 @@ button{cursor:pointer;}
   <div class="wo-title" id="wo-title"></div>
   <div class="wo-sub" id="wo-sub"></div>
   <div class="wo-skip">클릭하여 닫기</div>
+</div>
+
+<!-- WAR COMMAND MODAL -->
+<div id="warcmd-modal" onclick="if(event.target===this)closeWarCommands()">
+  <div id="warcmd-box"></div>
 </div>
 
 <div id="toast"></div>
@@ -863,6 +893,7 @@ function initGame(pid,mode){
     techsOwned:new Set(),
     portfolio:{},
     priceHistory:{},
+    warOrders:{},
     warPremium:1,envMult:{oil:1,wheat:1,agri:1,steel:1,semi:1,car:1,pharma:1,rare:1},
     countries:CTPL.map(c=>({
       ...c,
@@ -1008,11 +1039,191 @@ function spawnConfetti(){
 }
 
 // ══════════════════════════════════════════════════════
+//  WAR COMMAND DATA
+// ══════════════════════════════════════════════════════
+const WAR_ACTIONS=[
+  // ── 육군 ──
+  {id:'army_inf',branch:'army',icon:'🪖',name:'보병 전면 공세',desc:'대규모 지상군 투입. 높은 손실이지만 강력한 압박.',tags:['atk'],
+   cost:{bud:80},strMul:1.3,atkBonus:0.25,defBonus:0,appFx:-3,ecoFx:-1,special:null,
+   req:{mil:20}},
+  {id:'army_tank',branch:'army',icon:'🚛',name:'기갑 돌파 작전',desc:'전차부대로 적 방어선 돌파. 기동전 우위.',tags:['atk'],
+   cost:{bud:120},strMul:1.5,atkBonus:0.35,defBonus:0,appFx:-2,ecoFx:0,special:null,
+   req:{mil:35}},
+  {id:'army_def',branch:'army',icon:'🛡',name:'방어진지 구축',desc:'방어를 강화해 피해를 줄이고 전선을 안정화.',tags:['def'],
+   cost:{bud:60},strMul:0.8,atkBonus:0,defBonus:0.45,appFx:+2,ecoFx:+1,special:null,
+   req:{mil:10}},
+  {id:'army_blk',branch:'army',icon:'🚧',name:'경제 봉쇄',desc:'적 보급로 차단. 적국 GDP·성장에 타격.',tags:['eco'],
+   cost:{bud:90},strMul:0.9,atkBonus:0.05,defBonus:0.1,appFx:0,ecoFx:0,enemyGdpFx:-0.04,special:null,
+   req:{mil:25}},
+  // ── 해군 ──
+  {id:'navy_blk',branch:'navy',icon:'⚓',name:'해상 봉쇄',desc:'적 항구 봉쇄. 무역 중단 + 경제 타격.',tags:['eco','def'],
+   cost:{bud:110},strMul:1.1,atkBonus:0.1,defBonus:0.2,appFx:0,ecoFx:0,enemyGdpFx:-0.05,special:null,
+   req:{mil:30}},
+  {id:'navy_amp',branch:'navy',icon:'🚢',name:'상륙작전',desc:'해군 지원 상륙 강습. 해안거점 점령.',tags:['atk'],
+   cost:{bud:150},strMul:1.6,atkBonus:0.4,defBonus:0,appFx:-4,ecoFx:-1,special:null,
+   req:{mil:45}},
+  {id:'navy_sub',branch:'navy',icon:'🐟',name:'잠수함 기습',desc:'적 보급함 격침. 적국 재정 큰 타격.',tags:['eco','atk'],
+   cost:{bud:130},strMul:1.2,atkBonus:0.2,defBonus:0,appFx:-2,ecoFx:0,enemyBudFx:-180,special:null,
+   req:{mil:40}},
+  // ── 공군 ──
+  {id:'air_str',branch:'air',icon:'✈️',name:'전략 폭격',desc:'적 주요 시설 정밀 타격. 전쟁력 감소.',tags:['atk'],
+   cost:{bud:140},strMul:1.4,atkBonus:0.3,defBonus:0,appFx:-3,ecoFx:0,enemyMilFx:-8,special:null,
+   req:{mil:35}},
+  {id:'air_sup',branch:'air',icon:'🛩',name:'공중 우세 확보',desc:'제공권 장악. 지상군 전투력 크게 증폭.',tags:['atk','def'],
+   cost:{bud:120},strMul:1.35,atkBonus:0.2,defBonus:0.2,appFx:-1,ecoFx:0,special:null,
+   req:{mil:30}},
+  {id:'air_drone',branch:'air',icon:'🔫',name:'드론 정찰·타격',desc:'무인기로 피해 없이 적 전선 약화.',tags:['atk'],
+   cost:{bud:100},strMul:1.15,atkBonus:0.15,defBonus:0.05,appFx:0,ecoFx:0,special:null,
+   req:{mil:20}},
+  // ── 특수 무기 ──
+  {id:'spec_missile',branch:'special',icon:'🚀',name:'순항 미사일 공격',desc:'정밀 미사일로 수도·기지 타격. 즉각적 피해.',tags:['atk'],
+   cost:{bud:200},strMul:1.7,atkBonus:0.5,defBonus:0,appFx:-5,ecoFx:-2,enemyMilFx:-12,enemyBudFx:-250,special:'missile',
+   req:{mil:50}},
+  {id:'spec_cyber',branch:'special',icon:'💻',name:'사이버전 공격',desc:'적 금융·인프라 해킹. 지지율 영향 없이 경제 타격.',tags:['eco'],
+   cost:{bud:180},strMul:1.0,atkBonus:0.05,defBonus:0,appFx:0,ecoFx:0,enemyGdpFx:-0.07,enemyBudFx:-200,special:'cyber',
+   req:{mil:30}},
+  {id:'spec_nuke',branch:'special',icon:'☢️',name:'핵 투하',desc:'핵무기 사용. 즉각 전쟁 종료 가능. 국제 제재 극심.',tags:['atk'],
+   cost:{bud:0},strMul:3.0,atkBonus:1.2,defBonus:0,appFx:-25,ecoFx:-8,enemyGdpFx:-0.3,enemyMilFx:-60,special:'nuke',
+   req:{mil:80,tech:'nuclear'}},
+];
+const WAR_BRANCH={army:{name:'육군',icon:'🪖',color:'#ff6b6b'},navy:{name:'해군',icon:'⚓',color:'#4fc3f7'},air:{name:'공군',icon:'✈️',color:'#81d4fa'},special:{name:'특수무기',icon:'☢️',color:'#ffd700'}};
+
+function openWarCommands(cid){
+  const c=C(cid); const p=P();
+  const m=document.getElementById('warcmd-modal');
+  const box=document.getElementById('warcmd-box');
+  const cur=G.warOrders[cid]||null;
+  const branches=['army','navy','air','special'];
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div>
+      <div style="font-size:18px;font-weight:800;color:var(--re)">⚔️ 전투 명령 — ${c.flag} ${c.name}</div>
+      <div style="font-size:11px;color:var(--mu);margin-top:2px">전력: 우리 ${p.mil} vs 적 ${c.mil} | 재정 $${Math.round(p.bud)}억</div>
+    </div>
+    <button onclick="closeWarCommands()" style="background:transparent;border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--mu)">✕ 닫기</button>
+  </div>`;
+  branches.forEach(br=>{
+    const binfo=WAR_BRANCH[br];
+    const acts=WAR_ACTIONS.filter(a=>a.branch===br);
+    html+=`<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:800;color:${binfo.color};margin-bottom:7px;display:flex;align-items:center;gap:6px">${binfo.icon} ${binfo.name}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">`;
+    acts.forEach(a=>{
+      const canAfford=p.bud>=a.cost.bud;
+      const hasMil=p.mil>=(a.req.mil||0);
+      const hasTech=!a.req.tech||(G.techsOwned&&G.techsOwned.has(a.req.tech));
+      const avail=canAfford&&hasMil&&hasTech;
+      const sel=cur===a.id;
+      html+=`<div class="wcmd-card${sel?' selected':''}" onclick="${avail?`setWarOrder('${cid}','${a.id}')`:''}" style="${!avail?'opacity:.4;cursor:not-allowed;':''}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px">
+          <span style="font-size:18px">${a.icon}</span>
+          <div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end">${a.tags.map(t=>`<span class="wcmd-tag ${t}">${t==='atk'?'공격':t==='eco'?'경제':'방어'}</span>`).join('')}</div>
+        </div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:3px">${a.name}</div>
+        <div style="font-size:10px;color:var(--mu);margin-bottom:6px;line-height:1.4">${a.desc}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:10px">
+          <span style="color:var(--re)">💰 $${a.cost.bud}억</span>
+          <span style="color:var(--wa)">필요전력 ${a.req.mil}</span>
+          ${a.req.tech?`<span style="color:#c97aff">🔬 ${a.req.tech}</span>`:''}
+          ${!canAfford?'<span style="color:var(--re)">재정부족</span>':''}
+          ${!hasMil?'<span style="color:var(--re)">전력부족</span>':''}
+          ${!hasTech?'<span style="color:#c97aff">기술필요</span>':''}
+        </div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  });
+  if(cur){
+    const a=WAR_ACTIONS.find(x=>x.id===cur);
+    html+=`<div style="background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.4);border-radius:10px;padding:12px;margin-top:4px">
+      <div style="font-size:12px;font-weight:700;color:var(--go);margin-bottom:4px">선택된 명령: ${a.icon} ${a.name}</div>
+      <div style="font-size:11px;color:var(--mu)">다음 턴에 자동 실행됩니다. 재정 $${a.cost.bud}억 소요.</div>
+      <button onclick="confirmWarOrder('${cid}')" style="margin-top:8px;background:var(--re);border:none;border-radius:7px;padding:7px 18px;color:#fff;font-weight:700;font-size:12px;cursor:pointer">⚔️ 즉시 실행</button>
+    </div>`;
+  }else{
+    html+=`<div style="text-align:center;color:var(--mu);font-size:11px;padding:10px">명령을 선택하세요. 다음 턴 자동 실행되거나 즉시 실행 가능합니다.</div>`;
+  }
+  box.innerHTML=html;
+  m.classList.add('open');
+}
+function closeWarCommands(){document.getElementById('warcmd-modal').classList.remove('open');}
+function setWarOrder(cid,actionId){
+  G.warOrders[cid]=actionId;
+  openWarCommands(cid);
+}
+function confirmWarOrder(cid){
+  executeWarOrder(cid);
+  closeWarCommands();
+  renderAll();
+}
+function executeWarOrder(cid){
+  const c=C(cid); const p=P();
+  const aid=G.warOrders[cid];
+  if(!aid) return;
+  const a=WAR_ACTIONS.find(x=>x.id===aid);
+  if(!a) return;
+  if(p.bud<a.cost.bud){toast('재정 부족으로 작전 취소','bad');G.warOrders[cid]=null;return;}
+  p.bud-=a.cost.bud;
+  // 전력 비율 계산
+  const pStr=(p.gdp/(p.gdp+c.gdp))*(p.mil/(p.mil+c.mil));
+  const effStr=Math.min(1,pStr*a.strMul+a.atkBonus);
+  const r=Math.random();
+  let outcome;
+  if(r<effStr){outcome='win';}
+  else if(r<effStr+0.25){outcome='stale';}
+  else{outcome='lose';}
+  let msg='';
+  if(outcome==='win'){
+    const gain=Math.floor(50+Math.random()*80);
+    p.bud+=gain; G.approval=Math.min(100,G.approval+(a.appFx<0?1:4));
+    msg=`⚔️ [${a.icon}${a.name}] 작전 성공! $${gain}억 전리품 획득`;
+    p.gro+=0.5;
+  }else if(outcome==='stale'){
+    msg=`⚠️ [${a.icon}${a.name}] 일진일퇴 — 전선 교착 상태.`;
+    p.gro-=0.5;
+  }else{
+    const loss=Math.floor(60+Math.random()*80);
+    p.bud-=loss; G.approval=Math.max(0,G.approval+a.appFx-4);
+    msg=`💥 [${a.icon}${a.name}] 작전 실패. $${loss}억 손실.`;
+    p.gro-=1;
+  }
+  // 적국 피해
+  if(a.enemyGdpFx){c.gdp=Math.max(100,c.gdp*(1+a.enemyGdpFx));}
+  if(a.enemyMilFx){c.mil=Math.max(1,c.mil+a.enemyMilFx);}
+  if(a.enemyBudFx){c.bud+=a.enemyBudFx;}
+  // 방어 보너스
+  if(a.defBonus>0 && Math.random()<a.defBonus){p.bud+=40; msg+=' (방어 이점!)';}
+  // 특수 무기 처리
+  if(a.special==='nuke'){
+    G.approval=Math.max(0,G.approval-25);
+    AI().filter(x=>x.id!==cid).forEach(x=>{x.mood-=40;});
+    toast('☢️ 핵 투하! 국제 사회 강력 비난. 제재 발동.','bad');
+    G.evLog.unshift({text:`☢️ 핵무기 사용! ${c.flag}에 핵 투하. 국제 제재.`,type:'bad',turn:G.turn});
+    c.warTurns+=10;
+    if(Math.random()<0.85){
+      c.relation='neutral'; c.tariff=40; c.mood=-100;
+      logDiplo(`☢️ 핵 투하로 ${c.flag} ${c.name} 즉시 항복!`,'good');
+      toast(`☢️ ${c.flag} ${c.name} 즉시 항복!`,'good');
+      G.warOrders[cid]=null;
+      return;
+    }
+  }else if(a.special==='missile'){
+    toast(`🚀 순항미사일 발사! ${c.flag} 주요 시설 타격.`,'bad');
+    G.evLog.unshift({text:`🚀 미사일 공격 — ${c.flag}에 정밀 타격.`,type:'bad',turn:G.turn});
+  }else if(a.special==='cyber'){
+    toast(`💻 사이버 공격! ${c.flag} 금융망 해킹.`,'bad');
+    G.evLog.unshift({text:`💻 사이버전 — ${c.flag} 인프라 마비.`,type:'bad',turn:G.turn});
+  }
+  G.evLog.unshift({text:msg,type:outcome==='win'?'good':'bad',turn:G.turn});
+  G.warOrders[cid]=null;
+  toast(msg.slice(0,60),outcome==='win'?'good':'bad');
+}
+
+// ══════════════════════════════════════════════════════
 //  WAR SYSTEM
 // ══════════════════════════════════════════════════════
 function applyWarEffects(){
   const p=P();
   AI().filter(c=>c.relation==='military_war').forEach(c=>{
+    // 전투 명령 실행 (턴 시작 시)
+    if(G.warOrders[c.id]){executeWarOrder(c.id);}
     c.warTurns=(c.warTurns||0)+1;
     // 양측 경제 피해
     p.gro-=2.5+Math.random()*2;
@@ -2089,7 +2300,9 @@ function renderWarBanner(){
         <div class="war-stat"><div style="font-size:10px;color:var(--mu)">적 군사력</div><div class="ws-v">${c.mil}</div></div>
         <div class="war-stat"><div style="font-size:10px;color:var(--mu)">우리 군사력</div><div class="ws-v">${P().mil}</div></div>
       </div>
+      ${G.warOrders[c.id]?`<div style="font-size:11px;color:var(--go);margin-bottom:6px">⏳ 예약된 명령: ${(WAR_ACTIONS.find(a=>a.id===G.warOrders[c.id])||{icon:'',name:'?'}).icon} ${(WAR_ACTIONS.find(a=>a.id===G.warOrders[c.id])||{name:'?'}).name}</div>`:''}
       <div class="war-btns">
+        <button class="wbtn" onclick="openWarCommands('${c.id}')" style="background:rgba(255,68,68,.15);border-color:rgba(255,68,68,.5);color:var(--re);font-weight:800">⚔️ 전투 명령</button>
         <button class="wbtn grn" onclick="peaceNegotiate('${c.id}')">🕊 평화 협상 ($500억)</button>
         <button class="wbtn red" onclick="normalize('${c.id}')">🏳️ 항복 (재정 -$400억)</button>
       </div>
