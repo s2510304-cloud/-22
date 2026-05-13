@@ -1190,7 +1190,7 @@ const WAR_ACTIONS=[
    req:{mil:30}},
   {id:'spec_nuke',branch:'special',icon:'☢️',name:'핵 투하',desc:'핵무기 사용. 즉각 전쟁 종료 가능. 국제 제재 극심.',tags:['atk'],
    cost:{bud:0},strMul:3.0,atkBonus:1.2,defBonus:0,appFx:-25,ecoFx:-8,enemyGdpFx:-0.3,enemyMilFx:-60,special:'nuke',
-   req:{mil:80,tech:'nuclear'}},
+   req:{mil:80,tech:'nuke'}},
 ];
 const WAR_BRANCH={army:{name:'육군',icon:'🪖',color:'#ff6b6b'},navy:{name:'해군',icon:'⚓',color:'#4fc3f7'},air:{name:'공군',icon:'✈️',color:'#81d4fa'},special:{name:'특수무기',icon:'☢️',color:'#ffd700'}};
 
@@ -1227,7 +1227,7 @@ function openWarCommands(cid){
         <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:10px">
           <span style="color:var(--re)">💰 $${a.cost.bud}억</span>
           <span style="color:var(--wa)">필요전력 ${a.req.mil}</span>
-          ${a.req.tech?`<span style="color:#c97aff">🔬 ${a.req.tech}</span>`:''}
+          ${a.req.tech?`<span style="color:#c97aff">🔬 ${a.req.tech==='nuke'?'핵무기':a.req.tech}</span>`:''}
           ${!canAfford?'<span style="color:var(--re)">재정부족</span>':''}
           ${!hasMil?'<span style="color:var(--re)">전력부족</span>':''}
           ${!hasTech?'<span style="color:#c97aff">기술필요</span>':''}
