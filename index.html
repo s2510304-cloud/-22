@@ -241,6 +241,33 @@ button{cursor:pointer;}
 .port-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);}
 .spark{display:flex;align-items:flex-end;gap:1px;height:24px;}
 .spark-bar{width:5px;border-radius:2px 2px 0 0;min-height:2px;transition:height .3s;}
+/* STORY MODE */
+#story-overlay{position:fixed;inset:0;z-index:10000;background:#000;display:none;flex-direction:column;align-items:center;justify-content:flex-end;}
+#story-overlay.active{display:flex;}
+#story-bg{position:absolute;inset:0;background:linear-gradient(180deg,#0a0a1a 0%,#1a1a2e 100%);}
+#story-char{position:absolute;bottom:180px;left:50%;transform:translateX(-50%);max-height:55vh;max-width:320px;object-fit:contain;border-radius:12px;box-shadow:0 0 60px rgba(108,99,255,.4);transition:all .5s ease;}
+#story-char.shake{animation:story-shake .08s linear 6;}
+@keyframes story-shake{0%,100%{transform:translateX(-50%)}25%{transform:translateX(calc(-50% - 8px))}75%{transform:translateX(calc(-50% + 8px))}}
+#story-box{position:relative;width:100%;max-width:680px;background:rgba(10,10,26,.92);border-top:2px solid rgba(108,99,255,.5);padding:22px 28px 28px;z-index:2;}
+#story-name{font-size:14px;font-weight:800;color:var(--ac);letter-spacing:1px;margin-bottom:8px;}
+#story-text{font-size:17px;line-height:1.7;color:#fff;min-height:52px;}
+#story-choices{display:none;gap:12px;margin-top:18px;}
+#story-choices.show{display:flex;}
+.story-btn{flex:1;padding:13px;border-radius:10px;font-size:15px;font-weight:800;border:none;cursor:pointer;transition:all .2s;letter-spacing:1px;}
+.story-btn.yes{background:var(--ac);color:#fff;}
+.story-btn.yes:hover{background:#8a7fff;transform:scale(1.04);}
+.story-btn.no{background:transparent;border:2px solid rgba(255,100,100,.6);color:rgba(255,100,100,.9);}
+.story-btn.no:hover{background:rgba(255,68,68,.15);}
+/* AMONG US DROWN */
+#among-overlay{position:fixed;inset:0;z-index:10001;background:linear-gradient(180deg,#87ceeb 0%,#1e90ff 45%,#006994 55%,#004a70 100%);display:none;align-items:center;justify-content:center;flex-direction:column;}
+#among-overlay.active{display:flex;}
+#among-impostor{font-size:90px;animation:drown 3s ease-in forwards;}
+@keyframes drown{0%{transform:translateY(-30px) rotate(0deg);opacity:1}30%{transform:translateY(60px) rotate(-20deg);opacity:1}60%{transform:translateY(160px) rotate(-40deg);opacity:.8}80%{transform:translateY(260px) rotate(-60deg);opacity:.5}100%{transform:translateY(400px) rotate(-90deg);opacity:0}}
+#among-water{position:absolute;bottom:0;left:0;right:0;height:55%;background:linear-gradient(180deg,rgba(30,144,255,.7) 0%,#004a70 100%);border-top:4px solid rgba(135,206,235,.6);}
+#among-bubbles{position:absolute;font-size:24px;animation:bubble 2s ease-out 1.5s both;}
+@keyframes bubble{0%{opacity:0;transform:translateY(0)}100%{opacity:1;transform:translateY(-80px)}}
+#among-text{position:absolute;top:18%;font-size:22px;font-weight:900;color:#fff;text-shadow:0 2px 8px #000;letter-spacing:2px;animation:fadein .5s ease 3.2s both;}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
 /* CLIMATE */
 .clm-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd);font-size:12px;}
 .clm-bar{height:5px;background:var(--bd);border-radius:3px;margin:2px 0 5px;}
@@ -268,6 +295,28 @@ button{cursor:pointer;}
 </head>
 <body>
 
+<!-- STORY OVERLAY -->
+<div id="story-overlay">
+  <div id="story-bg"></div>
+  <img id="story-char" src="잼아저씨.jpg" alt="잼아저씨">
+  <div id="story-box">
+    <div id="story-name">잼아저씨</div>
+    <div id="story-text"></div>
+    <div id="story-choices">
+      <button class="story-btn yes" onclick="storyYes()">예</button>
+      <button class="story-btn no"  onclick="storyNo()">아니요</button>
+    </div>
+  </div>
+</div>
+
+<!-- AMONG US DROWN OVERLAY -->
+<div id="among-overlay">
+  <div id="among-water"></div>
+  <div id="among-impostor">📮</div>
+  <div id="among-bubbles">💧💧💧</div>
+  <div id="among-text">도망가지마...!</div>
+</div>
+
 <!-- SELECT -->
 <div id="sel">
   <h1>Eco<span>Nation</span></h1>
@@ -275,7 +324,7 @@ button{cursor:pointer;}
   <!-- STEP 1: 모드 선택 -->
   <div id="sel-step-mode">
     <p style="margin-bottom:22px">게임 모드를 선택하세요</p>
-    <div class="mode-grid">
+    <div class="mode-grid" style="grid-template-columns:1fr 1fr 1fr;max-width:780px;">
       <div class="mode-card" onclick="selectMode('normal')">
         <div class="mode-icon">⏱️</div>
         <div class="mode-name">일반 모드</div>
@@ -287,6 +336,12 @@ button{cursor:pointer;}
         <div class="mode-name">무한 모드</div>
         <div class="mode-desc">시간 제한 없이 무한히 운영합니다.<br>탄핵·선거 패배만 없으면 영원히 플레이!</div>
         <div class="mode-badge badge-inf">무제한 · 끝없는 도전</div>
+      </div>
+      <div class="mode-card" style="border-color:rgba(255,180,0,.4)" onclick="startStoryMode()">
+        <div class="mode-icon">📖</div>
+        <div class="mode-name">스토리 모드</div>
+        <div class="mode-desc">잼아저씨의 특별한 부탁을 들어주세요.<br>대한민국의 운명이 당신 손에!</div>
+        <div class="mode-badge" style="background:rgba(255,180,0,.18);color:#ffd700">스토리 · 대한민국 고정</div>
       </div>
     </div>
   </div>
@@ -2354,6 +2409,79 @@ function toast(msg,type='info'){
   const el=document.getElementById('toast');el.textContent=msg;el.className='on '+type;
   clearTimeout(_tt);_tt=setTimeout(()=>el.className='',3000);
 }
+// ── STORY MODE ──────────────────────────────────────
+const STORY_SCRIPT=[
+  {name:'잼아저씨', img:'잼아저씨.jpg', text:'어이~ 거기 잠깐만요!'},
+  {name:'잼아저씨', img:'잼아저씨.jpg', text:'나 요즘 좀 바빠서... 대한민국 나 대신 좀 운영해줄 수 있어요?'},
+  {name:'잼아저씨', img:'잼아저씨.jpg', text:'나 믿고 맡겨봐요~ 잘 할 수 있잖아요?', choices:true},
+];
+let _storyIdx=0;
+function startStoryMode(){
+  document.getElementById('sel').style.display='none';
+  _storyIdx=0;
+  showStoryLine();
+  document.getElementById('story-overlay').classList.add('active');
+}
+function showStoryLine(){
+  const line=STORY_SCRIPT[_storyIdx];
+  if(!line)return;
+  document.getElementById('story-char').src=line.img;
+  document.getElementById('story-name').textContent=line.name;
+  // 타이핑 효과
+  const el=document.getElementById('story-text');
+  el.textContent='';
+  const choices=document.getElementById('story-choices');
+  choices.classList.remove('show');
+  let i=0;
+  const t=setInterval(()=>{
+    el.textContent+=line.text[i++];
+    if(i>=line.text.length){
+      clearInterval(t);
+      if(line.choices) choices.classList.add('show');
+      else {
+        setTimeout(()=>{_storyIdx++;showStoryLine();},1200);
+      }
+    }
+  },45);
+}
+function storyYes(){
+  document.getElementById('story-choices').classList.remove('show');
+  const char=document.getElementById('story-char');
+  char.src='잼.jpg';
+  char.classList.add('shake');
+  setTimeout(()=>char.classList.remove('shake'),600);
+  document.getElementById('story-name').textContent='잼아저씨';
+  const el=document.getElementById('story-text');
+  el.textContent='';
+  const msg='고마워요! 잘 부탁해요~ 대한민국 파이팅!! 🇰🇷';
+  let i=0;
+  const t=setInterval(()=>{
+    el.textContent+=msg[i++];
+    if(i>=msg.length){
+      clearInterval(t);
+      setTimeout(()=>{
+        document.getElementById('story-overlay').classList.remove('active');
+        _selMode='normal';
+        initGame('KOR','normal');
+        document.getElementById('sel').style.display='none';
+        document.getElementById('nav').style.display='flex';
+        document.getElementById('qb').textContent='Q1 Y1 / 40분기';
+        renderAll();
+        toast('🇰🇷 대한민국 운영 시작! 잼아저씨가 믿고 맡겼습니다!','good');
+      },2000);
+    }
+  },55);
+}
+function storyNo(){
+  document.getElementById('story-overlay').classList.remove('active');
+  const ao=document.getElementById('among-overlay');
+  ao.classList.add('active');
+  setTimeout(()=>{
+    ao.classList.remove('active');
+    document.getElementById('sel').style.display='flex';
+  },5000);
+}
+
 let _selMode='normal';
 function selectMode(mode){
   _selMode=mode;
