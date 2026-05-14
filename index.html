@@ -573,6 +573,19 @@ button{cursor:pointer;}
 
 <!-- DASHBOARD -->
 <div class="page active" id="page-dash">
+  <!-- MP HUD (멀티플레이 전용) -->
+  <div id="mpHud" style="display:none;background:#1a1a2e;border:1px solid #4af;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12px;max-width:1440px;margin-left:auto;margin-right:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <span>🌍 방 코드: <b id="mpHudCode" style="color:#4af;letter-spacing:2px;"></b></span>
+      <span id="mpHudPlayers" style="color:#aaa;"></span>
+      <span id="mpHudTurn" style="color:#ff9;"></span>
+    </div>
+  </div>
+  <!-- MP 플레이어 현황 패널 (멀티플레이 전용) -->
+  <div id="mpPlayerPanel" style="display:none;background:#131929;border:1px solid #1e2d45;border-radius:8px;padding:8px 12px;margin-bottom:8px;max-width:1440px;margin-left:auto;margin-right:auto;">
+    <div style="font-size:10px;color:#5a6a88;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">👥 다른 플레이어</div>
+    <div id="mpPlayerPanelInner" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+  </div>
   <div class="dg">
     <div>
       <div class="kr" id="krow"></div>
@@ -795,6 +808,21 @@ button{cursor:pointer;}
 <div id="warcmd-modal" onclick="if(event.target===this)closeWarCommands()">
   <div id="warcmd-box"></div>
 </div>
+
+<!-- MP CHAT WINDOW -->
+<div id="mpChat" style="display:none;position:fixed;bottom:20px;right:20px;width:280px;background:#0d1117;border:1px solid #4af;border-radius:8px;z-index:9999;">
+  <div style="padding:8px 12px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center;">
+    <b style="color:#4af;">💬 채팅</b>
+    <button onclick="toggleChat()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:14px;">✕</button>
+  </div>
+  <div id="mpChatLog" style="height:150px;overflow-y:auto;padding:8px;font-size:12px;"></div>
+  <div style="padding:8px;display:flex;gap:4px;">
+    <input id="mpChatInput" placeholder="메시지..." style="flex:1;background:#1a1a2e;border:1px solid #333;color:#eee;border-radius:4px;padding:4px 8px;font-size:12px;" onkeydown="if(event.key==='Enter')sendChat()">
+    <button onclick="sendChat()" style="background:#4af;color:#000;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-weight:700;">전송</button>
+  </div>
+</div>
+<!-- 채팅 열기 버튼 -->
+<button id="mpChatBtn" onclick="toggleChat()" style="display:none;position:fixed;bottom:20px;right:20px;background:#4af;color:#000;border:none;border-radius:50%;width:44px;height:44px;font-size:20px;cursor:pointer;z-index:9998;">💬</button>
 
 <div id="toast"></div>
 <div id="modal"><div class="mbox"><h2 id="mt"></h2><div class="md" id="md"></div><div class="ms" id="ms"></div><div class="mr" id="mr"></div><div class="mc" id="mc"></div><button id="mrst" onclick="location.reload()">다시 시작</button></div></div>
@@ -3087,6 +3115,7 @@ function renderAll(){
   renderClimate('climate-dash'); renderClimate('climate-pnl');
   renderDisBox(); renderElecBox(); renderSpy();
   if (MP.enabled) updateNextQBtn();
+  if (MP.enabled) { updateMpHud(); renderMpPlayerPanel(); }
 }
 
 function renderHUD(){
@@ -4157,6 +4186,9 @@ function listenRoomStatus() {
             MP._myReady = false;
             listenReady();
             listenNotifications();
+            listenChat();
+            updateMpHud();
+            document.getElementById('mpChatBtn').style.display = 'block';
           });
         } else {
           // 클라이언트: 플레이어 목록에서 내 국가 확인 후 게임 시작 → 상태 감지 시작
@@ -4173,6 +4205,9 @@ function listenRoomStatus() {
             MP._myReady = false;
             listenReady();
             listenNotifications();
+            listenChat();
+            updateMpHud();
+            document.getElementById('mpChatBtn').style.display = 'block';
           });
         }
       }
@@ -4293,6 +4328,98 @@ function listenNotifications() {
     toast('📨 ' + n.from + ': ' + n.msg, 'bad');
     G.evLog.unshift({ text: '📨 ' + n.from + '의 행동: ' + n.msg, type: 'bad', turn: G.turn });
     snap.ref.remove();
+  });
+}
+
+// ── 멀티플레이 HUD 업데이트 ──────────────────────────────────
+function updateMpHud() {
+  if (!MP.enabled) return;
+  const hud = document.getElementById('mpHud');
+  if (!hud) return;
+  hud.style.display = 'block';
+  document.getElementById('mpHudCode').textContent = MP.roomCode || '';
+  // 플레이어 목록
+  const playerList = G.countries.filter(c => c.isPlayer);
+  const names = playerList.map(c => {
+    const isMe = c.playerUid === MP.uid;
+    return (c.flag || '') + ' ' + c.name + (isMe ? ' (나)' : '');
+  });
+  document.getElementById('mpHudPlayers').textContent = names.join(' · ');
+  document.getElementById('mpHudTurn').textContent = '분기 ' + G.turn + '/' + G.maxTurns;
+}
+
+// ── 다른 플레이어 현황 패널 ──────────────────────────────────
+function renderMpPlayerPanel() {
+  if (!MP.enabled) return;
+  const panel = document.getElementById('mpPlayerPanel');
+  const inner = document.getElementById('mpPlayerPanelInner');
+  if (!panel || !inner) return;
+
+  const otherPlayers = G.countries.filter(c => c.isPlayer && c.playerUid !== MP.uid);
+  if (otherPlayers.length === 0) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+
+  inner.innerHTML = otherPlayers.map(c => {
+    // XSS 방지: textContent를 통한 이스케이프 처리를 div 방식으로 처리
+    const flagSafe = (c.flag || '\u{1F3F3}️').replace(/[<>&"']/g, '');
+    const nameSafe = (c.name || '').replace(/[<>&"']/g, '');
+    return `<div style="display:inline-block;margin:2px;padding:6px 10px;background:#1e2a3a;border-radius:6px;font-size:11px;border:1px solid #1e2d45;">
+      <div style="font-weight:700;margin-bottom:3px;">${flagSafe} ${nameSafe} <span style="color:#5a6a88;">👤</span></div>
+      <div style="color:#4af;">GDP ${fG(c.gdp)}</div>
+      <div style="color:#f84;">군사 ${Math.round(c.mil)}</div>
+      <div style="color:#4f4;">재정 $${Math.round(c.bud)}억</div>
+    </div>`;
+  }).join('');
+}
+
+// ── 채팅 토글 ──────────────────────────────────────────────
+let chatOpen = false;
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('mpChat').style.display = chatOpen ? 'block' : 'none';
+  document.getElementById('mpChatBtn').style.display = chatOpen ? 'none' : (MP.enabled ? 'block' : 'none');
+  if (chatOpen) {
+    const log = document.getElementById('mpChatLog');
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+}
+
+// ── 채팅 전송 ──────────────────────────────────────────────
+function sendChat() {
+  const input = document.getElementById('mpChatInput');
+  if (!input) return;
+  const msg = input.value.trim();
+  if (!msg || !MP.enabled || !db) return;
+  input.value = '';
+  db.ref('rooms/' + MP.roomCode + '/chat').push({
+    from: MP.playerName || '익명',
+    msg: msg,
+    ts: Date.now()
+  }).catch(e => console.warn('채팅 전송 실패:', e));
+}
+
+// ── 채팅 수신 리스너 ──────────────────────────────────────
+function listenChat() {
+  if (!MP.enabled || !db || !MP.roomCode) return;
+  db.ref('rooms/' + MP.roomCode + '/chat').limitToLast(50).on('child_added', snap => {
+    const d = snap.val();
+    if (!d) return;
+    const log = document.getElementById('mpChatLog');
+    if (!log) return;
+    const isMe = d.from === (MP.playerName || '');
+    // XSS 방지: DOM API로 요소 생성
+    const row = document.createElement('div');
+    row.style.cssText = 'margin:2px 0;color:' + (isMe ? '#4af' : '#eee') + ';line-height:1.4;word-break:break-all;';
+    const sender = document.createElement('b');
+    sender.textContent = d.from + ': ';
+    const text = document.createTextNode(d.msg);
+    row.appendChild(sender);
+    row.appendChild(text);
+    log.appendChild(row);
+    log.scrollTop = log.scrollHeight;
+    if (!chatOpen && !isMe) {
+      toast('💬 ' + d.from + ': ' + d.msg.slice(0, 30), 'info');
+    }
   });
 }
 
