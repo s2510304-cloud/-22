@@ -198,8 +198,10 @@ button{cursor:pointer;}
 .srank-name{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .srank-detail{font-size:10px;color:rgba(255,255,255,.35);margin-top:1px;}
 .srank-score{font-size:14px;font-weight:900;color:#ffd700;white-space:nowrap;}
-#splash-clear-btn{margin-top:10px;background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:6px;color:rgba(255,255,255,.25);font-size:10px;padding:4px 10px;cursor:pointer;transition:all .2s;}
-#splash-clear-btn:hover{border-color:rgba(255,80,80,.4);color:rgba(255,100,100,.6);}
+.srank-top{border-color:rgba(255,215,0,.2);background:rgba(255,215,0,.05);}
+#srank-status{font-size:10px;color:rgba(255,255,255,.3);margin-left:8px;letter-spacing:0;}
+#srank-refresh{background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:6px;color:rgba(255,255,255,.35);font-size:12px;padding:2px 8px;cursor:pointer;margin-left:auto;transition:all .2s;}
+#srank-refresh:hover{border-color:rgba(108,99,255,.6);color:rgba(108,99,255,.9);}
 @media(max-width:680px){#splash-layout{flex-direction:column;gap:20px;}#globe-canvas{width:160px;height:160px;}#splash-ranks-list{grid-template-columns:1fr;}}
 /* SELECT */
 #sel{position:fixed;inset:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:22px;}
@@ -431,9 +433,8 @@ button{cursor:pointer;}
     </div>
   </div>
   <div id="splash-ranks-section">
-    <div id="splash-ranks-header">🏆 명예의 전당</div>
-    <div id="splash-ranks-list"><div style="color:rgba(255,255,255,.3);font-size:12px;text-align:center;padding:16px">아직 기록이 없습니다. 첫 번째 기록을 남겨보세요!</div></div>
-    <button id="splash-clear-btn" onclick="clearRankings()">기록 초기화</button>
+    <div id="splash-ranks-header">🏆 글로벌 랭킹 <span id="srank-status"></span><button id="srank-refresh" onclick="renderSplashRanks()">↻</button></div>
+    <div id="splash-ranks-list"></div>
   </div>
 </div>
 
@@ -3014,15 +3015,17 @@ function renderRelOver(){
 // ══════════════════════════════════════════════════════
 //  GAME END
 // ══════════════════════════════════════════════════════
-function showGameOverScore(result){
-  const {score,pos}=saveScore(result);
+async function showGameOverScore(result){
   const area=document.getElementById('ds-score-area');
   const fs=document.getElementById('ds-final-score');
   const rp=document.getElementById('ds-rank-pos');
   if(!area)return;
   area.style.display='block';
+  fs.textContent='점수 계산 중...';
+  rp.textContent='';
+  const {score,pos}=await saveScore(result);
   fs.textContent=`${score.toLocaleString()} pt`;
-  rp.textContent=pos<=10?`🏆 전체 ${pos}위 기록!`:'기록 저장 완료';
+  rp.textContent=pos<=3?`🏆 글로벌 ${pos}위!`:pos<=10?`🌐 글로벌 ${pos}위 기록`:'기록 업로드 완료';
 }
 function endGame(reason){
   G.gameOver=true;
@@ -3059,13 +3062,16 @@ function endGame(reason){
     const rn=['','🥇 GDP 1위','🥈 2위','🥉 3위','4위','5위','꼴찌'];
     const mt=document.getElementById('mt'),md=document.getElementById('md'),ms=document.getElementById('ms'),mr=document.getElementById('mr'),mc=document.getElementById('mc');
     const cm=['','경제 대통령! 세계를 이끄는 강국이 되었습니다!','아깝네요! 조금만 더!','선전했습니다!','중위권입니다.','아쉬운 결과.','경제 위기. 다시 도전!'];
-    const {score,pos}=saveScore('완료');
     mt.textContent='📊 최종 결과'; mt.style.color='var(--go)';
-    md.textContent=`${G.turn}분기 운영 완료 · 지지율: ${G.approval}% · 점수: ${score.toLocaleString()}pt`;
     ms.textContent=fG(p.gdp); ms.style.color='var(--ac)';
-    mr.textContent=rn[rank]||'';
-    mc.textContent=(pos<=3?`🏆 전체 ${pos}위! `:'')+(cm[rank]||'');
+    mr.textContent=rn[rank]||''; mc.textContent=cm[rank]||'';
+    md.textContent=`${G.turn}분기 완료 · 지지율 ${G.approval}% · 점수 업로드 중...`;
     document.getElementById('modal').classList.add('open');
+    saveScore('완료').then(({score,pos})=>{
+      md.textContent=`${G.turn}분기 완료 · 지지율 ${G.approval}% · ${score.toLocaleString()}pt`;
+      if(pos<=3)mc.textContent=`🏆 글로벌 ${pos}위! `+(cm[rank]||'');
+      else if(pos<=10)mc.textContent=`🌐 글로벌 ${pos}위 · `+(cm[rank]||'');
+    });
   }
 }
 
@@ -3176,11 +3182,14 @@ function endTutorial(){
   document.getElementById('tut-overlay').classList.remove('active');
 }
 
-// ══ 랭킹 시스템 ═══════════════════════════════════════
-const RANKS_KEY='econation_v1_ranks';
+// ══ 랭킹 시스템 (Firebase Realtime Database) ══════════
+// Firebase 콘솔 → Realtime Database URL을 아래에 입력하세요
+// 예: 'https://your-app-default-rtdb.firebaseio.com'
+const FB_URL='https://econation-ranking-default-rtdb.firebaseio.com';
+const RANKS_KEY='econation_v1_ranks'; // 로컬 폴백용
 let _playerName='플레이어';
-function getRankings(){try{return JSON.parse(localStorage.getItem(RANKS_KEY))||[];}catch{return[];}}
-function clearRankings(){if(confirm('기록을 모두 초기화할까요?')){localStorage.removeItem(RANKS_KEY);renderSplashRanks();}}
+let _cachedRanks=[];
+
 function calcScore(){
   if(!G||!G.countries)return 0;
   const p=P();
@@ -3188,7 +3197,37 @@ function calcScore(){
   const ftas=AI().filter(c=>c.relation==='deal').length;
   return Math.max(0,Math.round(p.gdp*3+Math.max(0,p.bud)*0.8+G.approval*600+G.turn*250+techs*600+ftas*400));
 }
-function saveScore(result){
+
+async function fetchGlobalRanks(){
+  try{
+    const r=await fetch(`${FB_URL}/ranks.json`);
+    const data=await r.json();
+    if(!data)return[];
+    return Object.entries(data)
+      .map(([k,v])=>({...v,_key:k}))
+      .sort((a,b)=>b.score-a.score)
+      .slice(0,20);
+  }catch{
+    try{return JSON.parse(localStorage.getItem(RANKS_KEY))||[];}catch{return[];}
+  }
+}
+
+async function pushGlobalRank(entry){
+  try{
+    await fetch(`${FB_URL}/ranks.json`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(entry)
+    });
+  }catch{
+    // 로컬 폴백
+    const ranks=JSON.parse(localStorage.getItem(RANKS_KEY)||'[]');
+    ranks.push(entry);ranks.sort((a,b)=>b.score-a.score);ranks.splice(20);
+    localStorage.setItem(RANKS_KEY,JSON.stringify(ranks));
+  }
+}
+
+async function saveScore(result){
   const score=calcScore();
   const p=P();
   const entry={
@@ -3196,28 +3235,39 @@ function saveScore(result){
     country:`${p.flag} ${p.name}`,
     mode:G.infiniteMode?'무한':'일반',
     turns:G.turn,gdp:Math.round(p.gdp),
-    result,date:new Date().toLocaleDateString('ko-KR')
+    result,date:new Date().toLocaleDateString('ko-KR'),
+    ts:Date.now()
   };
-  const ranks=getRankings();
-  ranks.push(entry);
-  ranks.sort((a,b)=>b.score-a.score);
-  ranks.splice(10);
-  localStorage.setItem(RANKS_KEY,JSON.stringify(ranks));
-  return{score,pos:ranks.findIndex(r=>r.name===entry.name&&r.score===entry.score)+1};
+  await pushGlobalRank(entry);
+  const ranks=await fetchGlobalRanks();
+  _cachedRanks=ranks;
+  const pos=ranks.findIndex(r=>r.ts===entry.ts||
+    (r.name===entry.name&&r.score===entry.score))+1;
+  return{score,pos:pos||ranks.length};
 }
-function renderSplashRanks(){
-  const list=document.getElementById('splash-ranks-list');if(!list)return;
-  const ranks=getRankings();
-  if(!ranks.length){list.innerHTML='<div style="color:rgba(255,255,255,.3);font-size:12px;text-align:center;padding:16px">아직 기록이 없습니다. 첫 번째 기록을 남겨보세요!</div>';return;}
+
+async function renderSplashRanks(){
+  const list=document.getElementById('splash-ranks-list');
+  const status=document.getElementById('srank-status');
+  if(!list)return;
+  if(status)status.textContent='불러오는 중...';
+  list.innerHTML='<div style="color:rgba(255,255,255,.25);font-size:12px;text-align:center;padding:20px">⏳ 랭킹 로딩 중...</div>';
+  const ranks=await fetchGlobalRanks();
+  _cachedRanks=ranks;
+  if(status)status.textContent=`· ${ranks.length}명 참가`;
+  if(!ranks.length){
+    list.innerHTML='<div style="color:rgba(255,255,255,.3);font-size:12px;text-align:center;padding:16px">아직 기록이 없습니다. 첫 번째 기록을 남겨보세요!</div>';
+    return;
+  }
   const medals=['gold','silver','bronze'];
-  list.innerHTML=ranks.map((r,i)=>`
-    <div class="srank-row">
+  list.innerHTML=ranks.slice(0,10).map((r,i)=>`
+    <div class="srank-row${i<3?' srank-top':''}">
       <div class="srank-pos ${medals[i]||'other'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
       <div class="srank-info">
         <div class="srank-name">${r.name}</div>
-        <div class="srank-detail">${r.country} · ${r.mode} · Q${r.turns} · ${r.date}</div>
+        <div class="srank-detail">${r.country} · ${r.mode}모드 · ${r.turns}턴 · ${r.date}</div>
       </div>
-      <div class="srank-score">${r.score.toLocaleString()}</div>
+      <div class="srank-score">${Number(r.score).toLocaleString()}<span style="font-size:9px;color:rgba(255,215,0,.5)">pt</span></div>
     </div>`).join('');
 }
 function toggleTheme(){
