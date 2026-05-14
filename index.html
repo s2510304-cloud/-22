@@ -267,6 +267,16 @@ button{cursor:pointer;}
 .wcmd-confirm{width:100%;padding:12px;margin-top:16px;background:var(--re);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:900;cursor:pointer;letter-spacing:1px;}
 .wcmd-confirm:hover{background:#ff2222;}
 .wcmd-cancel{width:100%;padding:8px;margin-top:6px;background:transparent;color:var(--mu);border:1px solid var(--bd);border-radius:8px;font-size:12px;cursor:pointer;}
+/* NUKE COUNTDOWN */
+#nuke-overlay{position:fixed;inset:0;z-index:9960;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;font-family:'Courier New',monospace;}
+#nuke-overlay.active{display:flex;}
+#nuke-scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,0,0,.025) 2px,rgba(255,0,0,.025) 4px);pointer-events:none;animation:scanmove 3s linear infinite;}
+#nuke-top{font-size:11px;letter-spacing:5px;color:rgba(255,60,60,.7);margin-bottom:6px;text-transform:uppercase;}
+#nuke-auth{font-size:12px;letter-spacing:2px;color:rgba(255,100,100,.5);margin-bottom:48px;}
+#nuke-count{font-size:180px;font-weight:900;color:#ff2222;line-height:1;text-shadow:0 0 80px #ff0000,0 0 160px rgba(255,0,0,.4);animation:nuke-pulse 1s ease-in-out infinite;}
+@keyframes nuke-pulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.06);opacity:.75;}}
+#nuke-status{font-size:11px;letter-spacing:3px;color:rgba(255,80,80,.65);margin-top:28px;min-height:16px;text-transform:uppercase;}
+#nuke-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;}
 /* WAR DECLARATION CINEMATIC */
 #wardecl-overlay{position:fixed;inset:0;z-index:9650;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;font-family:'Courier New',monospace;}
 #wardecl-overlay.active{display:flex;}
@@ -581,6 +591,16 @@ button{cursor:pointer;}
     <div style="font-size:11px;color:var(--wa);margin-bottom:14px;padding:7px 10px;background:rgba(255,152,0,.1);border-radius:7px">⚠️ 재해 대응 방식을 선택하세요. 선택에 따라 피해 규모와 복구 속도가 달라집니다.</div>
     <div id="dis-m-opts"></div>
   </div>
+</div>
+
+<!-- NUKE COUNTDOWN OVERLAY -->
+<div id="nuke-overlay">
+  <div id="nuke-scan"></div>
+  <div id="nuke-top">☢ 핵무기 발사 시스템 ☢</div>
+  <div id="nuke-auth">발사 코드 인증 완료 · 최종 승인</div>
+  <div id="nuke-count">10</div>
+  <div id="nuke-status">TARGET LOCKED</div>
+  <div id="nuke-flash"></div>
 </div>
 
 <!-- WAR DECLARATION CINEMATIC -->
@@ -1250,7 +1270,48 @@ function openWarCommands(cid){
   m.classList.add('open');
 }
 function closeWarCommands(){document.getElementById('warcmd-modal').classList.remove('open');}
+function showNukeCountdown(onLaunch){
+  const ov=document.getElementById('nuke-overlay');
+  const countEl=document.getElementById('nuke-count');
+  const statusEl=document.getElementById('nuke-status');
+  const flashEl=document.getElementById('nuke-flash');
+  const msgs=['TARGET LOCKED','ARMING WARHEAD...','TRAJECTORY CALCULATED','AUTH CODE: ALPHA','AUTH CODE: BRAVO','SAFETY OVERRIDE','MISSILE FUELED','FINAL CLEARANCE','경고: 불가역 작전','발사 준비 완료'];
+  ov.classList.add('active');
+  let n=10;
+  function tick(){
+    countEl.textContent=n;
+    statusEl.textContent=msgs[10-n]||'';
+    n--;
+    if(n>=0){setTimeout(tick,700);}
+    else{
+      countEl.style.animation='none';
+      countEl.textContent='☢';
+      statusEl.textContent='발사!!!';
+      flashEl.style.transition='opacity .05s';
+      flashEl.style.opacity='1';
+      setTimeout(()=>{
+        flashEl.style.transition='opacity .4s';
+        flashEl.style.opacity='0';
+        setTimeout(()=>{
+          ov.classList.remove('active');
+          countEl.style.animation='';
+          onLaunch();
+        },450);
+      },120);
+    }
+  }
+  tick();
+}
 function setWarOrder(cid,actionId){
+  if(actionId==='spec_nuke'){
+    closeWarCommands();
+    showNukeCountdown(()=>{
+      G.warOrders[cid]=actionId;
+      executeWarOrder(cid);
+      renderAll();
+    });
+    return;
+  }
   G.warOrders[cid]=actionId;
   openWarCommands(cid);
 }
