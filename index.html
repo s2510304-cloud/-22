@@ -555,7 +555,7 @@ button{cursor:pointer;}
         <div class="pb" style="padding:7px 10px;">
           <div id="ttabs" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;"></div>
           <div id="trade-notices"></div>
-          <table class="tbl"><thead><tr><th style="text-align:left">품목</th><th>기준가</th><th>현지가</th><th>관세</th><th>실구매가</th><th>수량</th><th>거래</th></tr></thead>
+          <table class="tbl"><thead><tr><th style="text-align:left">품목</th><th>기준가</th><th>현지가</th><th>관세</th><th>실구매가</th><th>거래</th></tr></thead>
           <tbody id="ttbody"></tbody></table>
         </div>
       </div>
@@ -743,6 +743,13 @@ const CTPL=[
   {id:'JPN',name:'일본',   flag:'🇯🇵',gdp:4200, unemp:2.6,infl:2.5,bal:30,  bud:4000, debt:260,gro:2.5,mil:55, desc:'기술 제조업 강국',str:'자동차·정밀기계',bonus:'자동차 품질 +15%'},
   {id:'DEU',name:'독일',   flag:'🇩🇪',gdp:4400, unemp:3.0,infl:2.8,bal:200, bud:4500, debt:65, gro:2.5,mil:60, desc:'유럽 최대 수출국',str:'화학·자동차',bonus:'EU 수출 무관세'},
   {id:'BRA',name:'브라질', flag:'🇧🇷',gdp:2100, unemp:8.5,infl:4.5,bal:20,  bud:2500, debt:90, gro:2.5,mil:40, desc:'자원 풍부 신흥국',str:'농산물·철강',bonus:'농산물 비용 -40%'},
+  // ── AI 전용 국가 (플레이어 선택 불가) ──────────────────
+  {id:'RUS',name:'러시아',  flag:'🇷🇺',gdp:2200, unemp:4.2,infl:5.8,bal:150, bud:3000, debt:15, gro:2.5,mil:90, desc:'에너지·군사 강국',    str:'원유·방산',  bonus:'에너지 수출 +30%', aiOnly:true},
+  {id:'IND',name:'인도',    flag:'🇮🇳',gdp:3700, unemp:7.2,infl:5.2,bal:-80, bud:3500, debt:85, gro:2.5,mil:72, desc:'세계 최대 인구 신흥국',str:'IT·의약품',  bonus:'IT 서비스 +25%',   aiOnly:true},
+  {id:'FRA',name:'프랑스',  flag:'🇫🇷',gdp:3000, unemp:7.0,infl:3.1,bal:-30, bud:3200, debt:112,gro:2.5,mil:65, desc:'문화·항공 강국',      str:'항공·명품',  bonus:'EU 외교 보너스',    aiOnly:true},
+  {id:'GBR',name:'영국',    flag:'🇬🇧',gdp:3100, unemp:4.1,infl:4.2,bal:-100,bud:3300, debt:100,gro:2.5,mil:68, desc:'금융·방산 강국',      str:'금융·방산',  bonus:'영어권 무역 +15%',  aiOnly:true},
+  {id:'SAU',name:'사우디',  flag:'🇸🇦',gdp:1100, unemp:5.5,infl:2.5,bal:200, bud:2800, debt:30, gro:2.5,mil:62, desc:'세계 최대 석유 수출국',str:'원유·에너지',bonus:'원유 생산 -50%',    aiOnly:true},
+  {id:'AUS',name:'호주',    flag:'🇦🇺',gdp:1700, unemp:3.8,infl:3.5,bal:50,  bud:2200, debt:55, gro:2.5,mil:48, desc:'자원 수출 선진국',    str:'광물·농산물',bonus:'희토류 수출 +35%',  aiOnly:true},
 ];
 const GOODS=[
   {id:'oil',  name:'원유',   emoji:'🛢', base:15,   unit:'배럴'},
@@ -761,6 +768,12 @@ const PM={
   JPN:{oil:1.2,wheat:1.1, steel:0.85,semi:0.8,car:0.7, pharma:0.85,rare:1.1,agri:1.0},
   DEU:{oil:1.1,wheat:0.9, steel:0.8,semi:0.9, car:0.75,pharma:0.75,rare:1.2,agri:0.85},
   BRA:{oil:0.95,wheat:0.6,steel:0.7,semi:1.3, car:1.2, pharma:1.2,rare:0.9,agri:0.55},
+  RUS:{oil:0.55,wheat:0.65,steel:0.7,semi:1.4, car:1.15,pharma:1.1,rare:0.75,agri:0.75},
+  IND:{oil:1.1, wheat:0.8, steel:0.9,semi:0.9, car:1.0, pharma:0.6, rare:1.0, agri:0.7},
+  FRA:{oil:1.1, wheat:0.8, steel:0.85,semi:0.95,car:0.8, pharma:0.75,rare:1.1, agri:0.85},
+  GBR:{oil:1.0, wheat:0.9, steel:0.9,semi:0.9, car:0.85,pharma:0.8, rare:1.2, agri:0.95},
+  SAU:{oil:0.4, wheat:1.3, steel:1.1,semi:1.25,car:1.15,pharma:1.2, rare:1.0, agri:1.3},
+  AUS:{oil:0.85,wheat:0.65,steel:0.7,semi:1.1, car:1.1, pharma:0.9, rare:0.55,agri:0.6},
 };
 const EVTS=[
   {text:'🛢 중동 긴장 — 유가 급등',type:'warn',gfx:{oil:.25},gdpFx:-.5},
@@ -908,6 +921,42 @@ const LEADERS={
     {title:'국방장관', name:'André Oliveira',  impact:'mil', desc:'브라질군 통수권자.'},
     {title:'중앙은행 총재',name:'Luciana Ferreira',impact:'fin', desc:'헤알화 안정 관리자.'},
   ],
+  RUS:[
+    {title:'대통령',  name:'Viktor Sokolov',  impact:'pol', desc:'철권 통치자. 암살 시 권력 공백.'},
+    {title:'국방장관', name:'Alexei Petrov',   impact:'mil', desc:'핵전력 관리자.'},
+    {title:'에너지장관',name:'Dmitry Volkov',  impact:'eco', desc:'원유 수출 총괄.'},
+    {title:'중앙은행 총재',name:'Elena Morozova',impact:'fin', desc:'루블화 관리자.'},
+  ],
+  IND:[
+    {title:'총리',    name:'Rajesh Kumar',    impact:'pol', desc:'14억 인민의 지도자.'},
+    {title:'재무장관', name:'Priya Sharma',    impact:'eco', desc:'인도 경제 총괄.'},
+    {title:'국방장관', name:'Vikram Singh',    impact:'mil', desc:'핵보유 군사력 관리자.'},
+    {title:'중앙은행 총재',name:'Arjun Patel', impact:'fin', desc:'루피화 안정.'},
+  ],
+  FRA:[
+    {title:'대통령',  name:'Laurent Dubois',  impact:'pol', desc:'제5공화국 수반.'},
+    {title:'총리',    name:'Sophie Bernard',   impact:'eco', desc:'경제 정책 총괄.'},
+    {title:'국방장관', name:'Pierre Moreau',   impact:'mil', desc:'핵전력 보유국 군 수장.'},
+    {title:'중앙은행 총재',name:'Marcel Leroy',impact:'fin', desc:'ECB 연계 프랑스 재정.'},
+  ],
+  GBR:[
+    {title:'총리',    name:'Edward Thompson',  impact:'pol', desc:'웨스트민스터 수반.'},
+    {title:'재무장관', name:'Catherine Mills',  impact:'eco', desc:'런던 금융 수호자.'},
+    {title:'국방장관', name:'James Windsor',    impact:'mil', desc:'핵전력 보유국 군 수장.'},
+    {title:'중앙은행 총재',name:'William Fraser',impact:'fin', desc:'파운드화 안정.'},
+  ],
+  SAU:[
+    {title:'왕세자',  name:'Khalid Al-Rashid',  impact:'pol', desc:'사우디 실권자.'},
+    {title:'에너지장관',name:'Abdullah Al-Saud', impact:'eco', desc:'OPEC 협상 대표.'},
+    {title:'국방장관', name:'Faisal Al-Mutairi', impact:'mil', desc:'왕국 군사력 총괄.'},
+    {title:'중앙은행 총재',name:'Omar Al-Harbi', impact:'fin', desc:'리얄화 관리자.'},
+  ],
+  AUS:[
+    {title:'총리',    name:'Sarah Mitchell',   impact:'pol', desc:'호주 연방 수반.'},
+    {title:'재무장관', name:'James Clarke',     impact:'eco', desc:'자원 수출 정책 총괄.'},
+    {title:'국방장관', name:'Robert Hughes',    impact:'mil', desc:'ANZUS 동맹 군사 대표.'},
+    {title:'중앙은행 총재',name:'Emily Watson', impact:'fin', desc:'호주달러 안정.'},
+  ],
 };
 
 const DISASTERS=[
@@ -926,57 +975,61 @@ const TECH_TREE=[
   {id:'agri_mod',   tier:1,icon:'🌾',name:'정밀농업',      prereq:[],
    desc:'드론·AI로 농업 생산성 증대. 식량 가격 안정.',
    req:{agri:5,pharma:2},
-   fx:{gro:+0.5,appFx:+4},fxLabel:'성장률 +0.5% · 지지율 +4'},
+   fx:{gro:+0.9,appFx:+5},fxLabel:'성장률 +0.9% · 지지율 +5'},
   {id:'renewable',  tier:1,icon:'🌱',name:'재생에너지',    prereq:[],
    desc:'태양광·풍력 전환. 오염 감소, 에너지 자립.',
    req:{steel:8,semi:3},
-   fx:{pollFx:-12,bud:+80},fxLabel:'오염도 -12 · 예산 +80억'},
+   fx:{pollFx:-15,bud:+120,gro:+0.4},fxLabel:'오염도 -15 · 예산 +120억 · 성장률 +0.4%'},
   {id:'semi_fab',   tier:1,icon:'💾',name:'반도체 자립',   prereq:[],
    desc:'국내 반도체 파운드리 구축. 수출 핵심 산업.',
    req:{semi:10,rare:3},
-   fx:{gro:+0.8,bud:+120},fxLabel:'성장률 +0.8% · 예산 +120억'},
+   fx:{gro:+1.2,bud:+160},fxLabel:'성장률 +1.2% · 예산 +160억'},
   {id:'biotech1',   tier:1,icon:'💉',name:'바이오 기초',   prereq:[],
    desc:'신약 연구 기반 확립. 의료 산업 성장.',
    req:{pharma:8,agri:3},
-   fx:{appFx:+6,gro:+0.4},fxLabel:'지지율 +6 · 성장률 +0.4%'},
+   fx:{appFx:+7,gro:+0.7},fxLabel:'지지율 +7 · 성장률 +0.7%'},
   // ── TIER 2 ──────────────────────────────────────────
   {id:'ai_tech',    tier:2,icon:'🤖',name:'AI 산업화',     prereq:['semi_fab'],
    desc:'AI 전산업 적용. 생산성·방첩 동시 향상.',
    req:{semi:18,rare:5},
-   fx:{gro:+1.2,spyCI:+15},fxLabel:'성장률 +1.2% · 방첩 +15%'},
+   fx:{gro:+2.0,spyCI:+15},fxLabel:'성장률 +2.0% · 방첩 +15%'},
   {id:'ev_industry',tier:2,icon:'⚡',name:'전기차 산업',   prereq:['renewable','semi_fab'],
    desc:'완성차 전기화. 수출 경쟁력 급상승.',
    req:{semi:10,rare:8,steel:12},
-   fx:{gro:+0.8,bud:+200},fxLabel:'성장률 +0.8% · 예산 +200억'},
+   fx:{gro:+1.4,bud:+260},fxLabel:'성장률 +1.4% · 예산 +260억'},
   {id:'space_launch',tier:2,icon:'🚀',name:'우주 발사체', prereq:['semi_fab'],
    desc:'독자 로켓 개발. 위성·통신 산업 선점.',
    req:{oil:20,semi:15,steel:18},
-   fx:{gro:+0.6,mil:+10,spyCI:+10},fxLabel:'성장률 +0.6% · 군사 +10 · 방첩 +10%'},
+   fx:{gro:+1.1,mil:+10,spyCI:+10},fxLabel:'성장률 +1.1% · 군사 +10 · 방첩 +10%'},
   {id:'biotech2',   tier:2,icon:'🧬',name:'유전자 기술',   prereq:['biotech1'],
    desc:'유전자 편집·개인맞춤 신약. 의료 수출 강국.',
    req:{pharma:18,rare:6},
-   fx:{gro:+0.7,appFx:+8,bud:+150},fxLabel:'성장률 +0.7% · 지지율 +8 · 예산 +150억'},
+   fx:{gro:+1.2,appFx:+9,bud:+200},fxLabel:'성장률 +1.2% · 지지율 +9 · 예산 +200억'},
   {id:'miltech',    tier:2,icon:'🛡️',name:'첨단 방산',     prereq:[],
    desc:'스텔스·드론 전력화. 군사력 대폭 강화.',
    req:{steel:18,semi:12,rare:8},
-   fx:{mil:+30,gro:+0.3},fxLabel:'군사력 +30 · 성장률 +0.3%'},
+   fx:{mil:+30,gro:+0.7},fxLabel:'군사력 +30 · 성장률 +0.7%'},
   // ── TIER 3 ──────────────────────────────────────────
   {id:'space_station',tier:3,icon:'🛸',name:'우주 정거장',prereq:['space_launch','ai_tech'],
    desc:'국제 위상 최고 수준. 우주 경제 선도.',
    req:{oil:35,semi:30,steel:25,rare:20},
-   fx:{gro:+1.8,mil:+15,appFx:+12},fxLabel:'성장률 +1.8% · 군사 +15 · 지지율 +12'},
+   fx:{gro:+2.8,mil:+15,appFx:+14},fxLabel:'성장률 +2.8% · 군사 +15 · 지지율 +14'},
   {id:'fusion',     tier:3,icon:'⚛️',name:'핵융합 에너지',prereq:['renewable','ai_tech'],
    desc:'무한 청정에너지. 에너지 위기 영구 종식.',
    req:{rare:25,semi:22,steel:28},
-   fx:{pollFx:-35,gro:+2.2,bud:+300},fxLabel:'오염 -35 · 성장 +2.2% · 예산 +300억'},
+   fx:{pollFx:-40,gro:+3.2,bud:+400},fxLabel:'오염 -40 · 성장 +3.2% · 예산 +400억'},
   {id:'agi',        tier:3,icon:'🧠',name:'범용 인공지능',prereq:['ai_tech','biotech2'],
    desc:'전 분야 AI 대체. 역사상 최대 생산성 혁명.',
    req:{semi:40,rare:12},
-   fx:{gro:+3.0,spyCI:+25,appFx:+10},fxLabel:'성장률 +3.0% · 방첩 +25% · 지지율 +10'},
+   fx:{gro:+4.5,spyCI:+25,appFx:+12},fxLabel:'성장률 +4.5% · 방첩 +25% · 지지율 +12'},
   {id:'nuke',       tier:3,icon:'☢️',name:'핵무기',         prereq:['miltech','space_launch'],
    desc:'핵 억지력 확보. 전쟁 억제. 단, 강력한 국제 제재.',
    req:{rare:30,steel:22,semi:18,oil:25},
    fx:{mil:+60,moodPenalty:true},fxLabel:'군사력 +60 (단, 전국가 감정 -40)'},
+  {id:'auto_platform',tier:3,icon:'🏎️',name:'차세대 모빌리티', prereq:['ev_industry','ai_tech'],
+   desc:'자율주행·수소차 통합 플랫폼. 자동차 수출 세계 최강국 달성.',
+   req:{semi:22,rare:15,steel:18,car:8},
+   fx:{gro:+2.5,bud:+450,mil:+5},fxLabel:'성장률 +2.5% · 예산 +450억 · 군사 +5'},
 ];
 
 const TERROR_EVENTS=[
@@ -1554,9 +1607,16 @@ function checkEscalation(){
         logDiplo(`⚔️ ${c.flag} ${c.name}이 군사전쟁 선포!`,'bad');
         G.evLog.unshift({text:`🚨 ${c.flag} ${c.name}이 선전포고! 전쟁 발발!`,type:'bad',turn:G.turn});
         G.approval=Math.max(0,G.approval-10);
-        // 제3국 반응
+        // 제3국 반응 및 연합 참전
         AI().filter(x=>x.id!==c.id&&x.relation!=='military_war').forEach(x=>{
           if(Math.random()<0.4){x.mood-=15;addReaction(x,'sanction');}
+          // 적대적 3국이 전쟁에 편승 (mood<-50, 20% 확률)
+          if(x.mood<-50&&x.relation!=='alliance'&&Math.random()<0.20){
+            x.relation='military_war'; x.warTurns=0; x.mood=-80;
+            logDiplo(`⚔️ ${x.flag}${x.name} 참전! ${c.flag}${c.name}과 연합!`,'bad');
+            G.evLog.unshift({text:`🚨 ${x.flag}${x.name} 참전! 적 연합군 확대!`,type:'bad',turn:G.turn});
+            toast(`⚠️ ${x.flag}${x.name} 참전!`,'bad');
+          }
         });
         showEnemyWarDeclaration(c, ()=>{ renderAll(); });
       }
@@ -1592,8 +1652,8 @@ function nextQ(){
 
   // AI 시뮬
   AI().forEach(c=>{
-    c.gro+=(Math.random()-.45)*1.2; c.gro=Math.max(-4,Math.min(9,c.gro));
-    c.gdp=Math.max(100,c.gdp*(1+c.gro/400));
+    c.gro+=(Math.random()-.45)*1.2; c.gro=Math.max(-4,Math.min(12,c.gro));
+    c.gdp=Math.max(100,c.gdp*(1+c.gro/100));
     c.unemp=Math.max(.5,Math.min(20,c.unemp+(Math.random()-.5)*.4));
     c.infl=Math.max(0,Math.min(15,c.infl+(Math.random()-.5)*.3));
     c.bal+=(Math.random()-.4)*25; c.bud+=(Math.random()-.5)*50;
@@ -1604,8 +1664,8 @@ function nextQ(){
   checkEscalation();
 
   const p=P();
-  p.gro=Math.max(-5,Math.min(8,p.gro));
-  p.gdp=Math.max(100,p.gdp*(1+p.gro/400));
+  p.gro=Math.max(-5,Math.min(20,p.gro));
+  p.gdp=Math.max(100,p.gdp*(1+p.gro/100));
   p.bal+=(G.totExp-G.totImp)/10;
   // 무역 수익: 매 턴 재정 반영
   const _expRev = Math.round(G.totExp * 9);   // 수출 총액의 9% 마진
@@ -1681,7 +1741,7 @@ function applyPol(pol){
   G.pp-=pol.cost;
   const p=P();const fx=pol.fx;
   if(fx.infl!==undefined)p.infl=Math.max(0,p.infl+fx.infl);
-  if(fx.gro !==undefined)p.gro =Math.max(-5,p.gro+fx.gro);
+  if(fx.gro !==undefined)p.gro =Math.max(-5,Math.min(20,p.gro+fx.gro));
   if(fx.bud !==undefined)p.bud +=fx.bud;
   if(fx.unemp!==undefined)p.unemp=Math.max(.5,p.unemp+fx.unemp);
   if(fx.bal !==undefined)p.bal +=fx.bal;
@@ -1701,9 +1761,9 @@ function applyPol(pol){
 // ══════════════════════════════════════════════════════
 //  TRADE
 // ══════════════════════════════════════════════════════
-const TRADE_LIMIT=5; // 분기당 상품별 최대 거래 횟수
+const TRADE_LIMIT=15; // 분기당 상품별 최대 거래 횟수
 function buyGood(cid,gid){
-  const qty=parseInt(document.getElementById('qty-'+gid)?.value)||1;
+  const qty=1;
   const c=C(cid),g=GOODS.find(x=>x.id===gid),p=P();
   if(c.relation==='military_war'){toast('🚫 무역 금지 — 교전국과는 거래 불가','bad');return;}
   if((G.tradeBought[gid]||0)>=TRADE_LIMIT){toast(`⏳ ${g.name} 이번 분기 수입 한도 초과 (${TRADE_LIMIT}회)`,'bad');return;}
@@ -1721,7 +1781,7 @@ function buyGood(cid,gid){
   toast(`${g.emoji} ${g.name} ${qty}${g.unit} 수입 ($${fmt(cost)}) — 이번 분기 ${G.tradeBought[gid]}/${TRADE_LIMIT}회`,'good'); renderAll();
 }
 function sellGood(gid,qty){
-  qty=qty||parseInt(document.getElementById('sq-'+gid)?.value)||1;
+  qty=qty||1;
   if((G.inv[gid]||0)<qty){toast('재고 부족','bad');return;}
   if((G.tradeBought[gid]||0)>0){toast('⏳ 이번 분기에 수입한 자원은 다음 분기에 판매 가능합니다','bad');return;}
   const c=C(G.activeTC);
@@ -1919,6 +1979,25 @@ function showEnemyWarDeclaration(c, onClose){
   };
   document.getElementById('wardecl-cancel').onclick=null;
 }
+function checkCoalition(mainWarId){
+  const mainEnemy=C(mainWarId);
+  // 적대적 AI국이 적 편에 참전할 수 있음 (mood < -40, 28% 확률)
+  AI().filter(x=>x.id!==mainWarId&&x.relation!=='military_war'&&x.relation!=='alliance').forEach(x=>{
+    if(x.mood<-40&&Math.random()<0.28){
+      x.relation='military_war'; x.warTurns=0; x.mood=-80;
+      logDiplo(`⚔️ ${x.flag}${x.name} 참전! ${mainEnemy.flag}${mainEnemy.name} 편에 섰습니다.`,'bad');
+      G.evLog.unshift({text:`🚨 ${x.flag}${x.name} 참전! 적 연합군 형성!`,type:'bad',turn:G.turn});
+      addReaction(x,'ai_attacks',`${mainEnemy.name}과 연대하여 참전합니다!`);
+      toast(`⚠️ ${x.flag}${x.name} 적 편에 참전!`,'bad');
+    }
+  });
+  // 동맹국 지지 선언
+  const allies=AI().filter(x=>x.relation==='alliance');
+  if(allies.length>0){
+    allies.forEach(x=>{logDiplo(`🛡 ${x.flag}${x.name} 우리 편으로 참전 지지!`,'good');});
+    toast(`🛡 동맹 ${allies.length}개국 참전 지지!`,'good');
+  }
+}
 function declareMilWar(cid){
   const c=C(cid);
   showWarDeclaration(c, ()=>{
@@ -1928,6 +2007,7 @@ function declareMilWar(cid){
     G.evLog.unshift({text:`🚨 ${c.flag} ${c.name}에 전쟁 선포!`,type:'bad',turn:G.turn});
     G.approval=Math.max(0,G.approval-10);
     AI().filter(x=>x.id!==cid).forEach(x=>{x.mood-=15;if(Math.random()<0.4)addReaction(x,'sanction');});
+    checkCoalition(cid);
     toast(`⚔️ ${c.flag} ${c.name}에 선전포고!`,'bad');renderAll();
   });
 }
@@ -2332,18 +2412,30 @@ function updateMarket(){
 
 function aiSpyAttack(){
   const p=P();
-  AI().filter(c=>c.mood<-20&&Math.random()<.07).forEach(c=>{
+  const AI_SPY_OPS=[
+    {icon:'💸',name:'재정 공작',    desc:'재정 -$80억',       prob:0.28, fx:()=>{p.bud-=80;}},
+    {icon:'📉',name:'성장 방해',    desc:'성장률 -0.8%',      prob:0.22, fx:()=>{p.gro-=0.8;}},
+    {icon:'📰',name:'여론 공작',    desc:'지지율 -7%',        prob:0.20, fx:()=>{G.approval=Math.max(0,G.approval-7);}},
+    {icon:'🪖',name:'군사 정보 유출',desc:'군사력 -6',        prob:0.15, fx:()=>{p.mil=Math.max(5,p.mil-6);}},
+    {icon:'💾',name:'기술 절취',    desc:'성장률 -0.5% · 재정 -50억', prob:0.10, fx:()=>{p.gro-=0.5;p.bud-=50;}},
+    {icon:'🏭',name:'산업 시설 파괴',desc:'재정 -$150억 · 성장 -0.4%', prob:0.05, fx:()=>{p.bud-=150;p.gro-=0.4;}},
+  ];
+  AI().filter(c=>c.mood<-20&&Math.random()<.09).forEach(c=>{
     const blocked=Math.random()*100<G.spyCI;
-    if(blocked){G.evLog.unshift({text:`🛡 ${c.flag}${c.name}의 스파이를 방첩망으로 검거!`,type:'good',turn:G.turn});toast(`🛡 ${c.flag} 스파이 검거!`,'good');}
-    else{
-      const r=Math.random();let dmg='';
-      if(r<.4){p.bud-=60;dmg='재정 -$60억';}
-      else if(r<.7){p.gro-=.8;dmg='성장률 -0.8%';}
-      else{G.approval=Math.max(0,G.approval-5);dmg='지지율 -5%';}
-      G.evLog.unshift({text:`🕵️ ${c.flag}${c.name} 스파이 공작 성공! (${dmg})`,type:'bad',turn:G.turn});
-      toast(`⚠️ ${c.flag} 스파이 공작! (${dmg})`,'warn');
+    if(blocked){
+      G.evLog.unshift({text:`🛡 ${c.flag}${c.name}의 스파이를 방첩망으로 검거!`,type:'good',turn:G.turn});
+      G.spyLog.unshift({text:`🛡 ${c.flag}${c.name} 스파이 검거 — 방첩 성공`,fail:false,turn:G.turn});
+      toast(`🛡 ${c.flag} 스파이 검거!`,'good');
+    } else {
+      let roll=Math.random(),cumul=0,op=AI_SPY_OPS[0];
+      for(const o of AI_SPY_OPS){cumul+=o.prob;if(roll<cumul){op=o;break;}}
+      op.fx();
+      G.spyLog.unshift({text:`🕵️ ${c.flag}${c.name} — ${op.icon}${op.name}: ${op.desc}`,fail:true,turn:G.turn});
+      G.evLog.unshift({text:`🕵️ ${c.flag}${c.name} 스파이 공작 성공! ${op.icon}${op.name} (${op.desc})`,type:'bad',turn:G.turn});
+      toast(`⚠️ ${c.flag} ${op.name}! (${op.desc})`,'warn');
     }
   });
+  if(G.spyLog.length>30)G.spyLog.splice(30);
   if(G.spyAgents<3)G.spyAgents=Math.min(3,G.spyAgents+1);
 }
 
@@ -2795,7 +2887,7 @@ function renderHUD(){
 function renderKPIs(){
   const p=P();
   const ks=[
-    {l:'GDP',        v:fG(p.gdp),        s:(p.gro>=0?'+':'')+p.gro.toFixed(1)+'%', c:p.gro>=0?'var(--gr)':'var(--re)', f:Math.min(100,p.gdp/300), fc:'var(--go)'},
+    {l:'GDP',        v:fG(p.gdp),        s:(p.gro>=0?'+':'')+p.gro.toFixed(1)+'%', c:p.gro>=0?'var(--gr)':'var(--re)', f:Math.min(100,p.gdp/1000), fc:'var(--go)'},
     {l:'실업률',     v:p.unemp.toFixed(1)+'%',  s:p.unemp<4?'완전고용':p.unemp<7?'보통':'높음',   c:p.unemp<4?'var(--gr)':p.unemp<7?'var(--wa)':'var(--re)', f:p.unemp*5, fc:'var(--re)'},
     {l:'물가상승률', v:p.infl.toFixed(1)+'%',   s:p.infl<3?'안정':p.infl<6?'주의':'위험',          c:p.infl<3?'var(--gr)':p.infl<6?'var(--wa)':'var(--re)',   f:p.infl*6,  fc:'var(--wa)'},
     {l:'무역수지',   v:(p.bal>=0?'+':'')+Math.round(p.bal)+'억$', s:p.bal>=0?'흑자':'적자', c:p.bal>=0?'var(--gr)':'var(--re)', f:50+p.bal/20, fc:'var(--gr)'},
@@ -2877,15 +2969,15 @@ function renderCitizens(){
 
 function renderLB(){
   const s=[...G.countries].sort((a,b)=>b.gdp-a.gdp);
-  const rk=['🥇','🥈','🥉','4','5','6'];
-  document.getElementById('lb').innerHTML=s.map((c,i)=>`<div class="lbi ${c.isPlayer?'me':''}"><div class="lr">${rk[i]}</div><div class="lf">${c.flag}</div><div class="li"><div class="n">${c.name}${c.isPlayer?' (나)':''}</div><div class="g">${c.gro>=0?'+':''}${c.gro.toFixed(1)}%</div></div><div class="lg">${fG(c.gdp)}</div></div>`).join('');
+  const rk=['🥇','🥈','🥉','4','5','6','7','8','9','10','11','12'];
+  document.getElementById('lb').innerHTML=s.map((c,i)=>`<div class="lbi ${c.isPlayer?'me':''}"><div class="lr">${rk[i]||i+1}</div><div class="lf">${c.flag}</div><div class="li"><div class="n">${c.name}${c.isPlayer?' (나)':''}</div><div class="g">${c.gro>=0?'+':''}${c.gro.toFixed(1)}%</div></div><div class="lg">${fG(c.gdp)}</div></div>`).join('');
 }
 
 function renderMySummary(){
   const p=P(),rank=[...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.isPlayer)+1;
   const mwars=AI().filter(c=>c.relation==='military_war').length;
   document.getElementById('mysum').innerHTML=`<div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
-    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">현재 순위</span><strong style="color:var(--go)">${rank}위 / 6개국</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">현재 순위</span><strong style="color:var(--go)">${rank}위 / ${G.countries.length}개국</strong></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">남은 분기</span><strong>${G.infiniteMode?'<span style="color:var(--go)">♾️ 무한</span>':`${G.maxTurns-G.turn}분기`}</strong></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">FTA 국가</span><strong style="color:var(--gr)">${AI().filter(c=>c.relation==='deal').length}개국</strong></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">관세전쟁</span><strong style="color:var(--wa)">${AI().filter(c=>c.relation==='tariff_war').length}개국</strong></div>
@@ -2937,10 +3029,9 @@ function renderTradeTable(){
       <td class="${loc===mn[g.id]?'cheap':loc===mx[g.id]?'expensive':''}">$${loc.toLocaleString()} <span style="font-size:10px;color:${parseFloat(diff)>0?'var(--re)':'var(--gr)'}">${diff>0?'+':''}${diff}%</span></td>
       <td><input class="ti" type="number" min="0" max="100" value="${tar}" onchange="setTariff('${c.id}',this.value)"></td>
       <td style="font-weight:700;color:${inflated?'var(--re)':'var(--ac)'}">$${fin.toLocaleString()}${inflated?'<span style="font-size:9px"> ▲</span>':''}</td>
-      <td><input class="ti" type="number" min="1" value="1" id="qty-${g.id}" style="width:44px"></td>
       <td><div style="display:flex;gap:3px;justify-content:flex-end;align-items:center;flex-wrap:wrap;">
         <button class="bb" onclick="buyGood('${c.id}','${g.id}')" ${(G.tradeBought[g.id]||0)>=TRADE_LIMIT?'disabled style="opacity:.4;cursor:not-allowed"':''}>수입${(G.tradeBought[g.id]||0)>0?` (${G.tradeBought[g.id]}/${TRADE_LIMIT})`:''}</button>
-        ${inv>0?`<input class="ti" type="number" min="1" max="${inv}" value="1" id="sq-${g.id}" style="width:38px"><button class="bs" onclick="sellGood('${g.id}')" ${((G.tradeSold[g.id]||0)>=TRADE_LIMIT||(G.tradeBought[g.id]||0)>0)?'disabled style="opacity:.4;cursor:not-allowed"':''}>수출$${Math.round(c.prices[g.id]*0.92).toLocaleString()}(${inv})${(G.tradeBought[g.id]||0)>0?' 🔒':''}</button>`:''}
+        ${inv>0?`<button class="bs" onclick="sellGood('${g.id}')" ${((G.tradeSold[g.id]||0)>=TRADE_LIMIT||(G.tradeBought[g.id]||0)>0)?'disabled style="opacity:.4;cursor:not-allowed"':''}>수출 $${Math.round(c.prices[g.id]*0.92).toLocaleString()} (재고 ${inv})${(G.tradeBought[g.id]||0)>0?' 🔒':''}</button>`:''}
       </div></td>
     </tr>`;
   }).join('');
@@ -3198,18 +3289,21 @@ function endGame(reason){
     });
     setTimeout(()=>showGameOverScore('내전'),2500);
   } else {
-    const rn=['','🥇 GDP 1위','🥈 2위','🥉 3위','4위','5위','꼴찌'];
+    const total=G.countries.length;
+    const rnMap={1:'🥇 GDP 1위',2:'🥈 2위',3:'🥉 3위'};
+    const rnStr=rnMap[rank]||(rank<=Math.ceil(total/2)?`상위 ${rank}위`:`하위 ${rank}위 / ${total}개국`);
+    const cmArr=['','경제 대통령! 세계를 이끄는 강국이 되었습니다!','아깝네요! 조금만 더!','선전했습니다!'];
+    const cmStr=rank<=3?cmArr[rank]:rank<=Math.ceil(total/2)?'중위권입니다. 조금 더 노력하면!':rank<total?'아쉬운 결과. 다음엔 더 잘 할 수 있어요!':'꼴찌... 처음부터 다시 도전!';
     const mt=document.getElementById('mt'),md=document.getElementById('md'),ms=document.getElementById('ms'),mr=document.getElementById('mr'),mc=document.getElementById('mc');
-    const cm=['','경제 대통령! 세계를 이끄는 강국이 되었습니다!','아깝네요! 조금만 더!','선전했습니다!','중위권입니다.','아쉬운 결과.','경제 위기. 다시 도전!'];
     mt.textContent='📊 최종 결과'; mt.style.color='var(--go)';
     ms.textContent=fG(p.gdp); ms.style.color='var(--ac)';
-    mr.textContent=rn[rank]||''; mc.textContent=cm[rank]||'';
+    mr.textContent=rnStr; mc.textContent=cmStr;
     md.textContent=`${G.turn}분기 완료 · 지지율 ${G.approval}% · 점수 업로드 중...`;
     document.getElementById('modal').classList.add('open');
     saveScore('완료').then(({score,pos})=>{
       md.textContent=`${G.turn}분기 완료 · 지지율 ${G.approval}% · ${score.toLocaleString()}pt`;
-      if(pos<=3)mc.textContent=`🏆 글로벌 ${pos}위! `+(cm[rank]||'');
-      else if(pos<=10)mc.textContent=`🌐 글로벌 ${pos}위 · `+(cm[rank]||'');
+      if(pos<=3)mc.textContent=`🏆 글로벌 ${pos}위! `+cmStr;
+      else if(pos<=10)mc.textContent=`🌐 글로벌 ${pos}위 · `+cmStr;
     });
   }
 }
@@ -3245,7 +3339,7 @@ function backToMode(){
   document.getElementById('sel-step-mode').style.display='block';
 }
 function buildSel(){
-  document.getElementById('csg').innerHTML=CTPL.map(c=>{
+  document.getElementById('csg').innerHTML=CTPL.filter(c=>!c.aiOnly).map(c=>{
     const m=MAPS[c.id];
     const miniMap=m?`<svg class="sel-map" viewBox="${m.vb}" xmlns="http://www.w3.org/2000/svg"><path d="${m.path}" fill="var(--ac)" opacity=".75" stroke="var(--ac)" stroke-width="1"/></svg>`:'';
     return `<div class="csc" onclick="startGame('${c.id}')">
