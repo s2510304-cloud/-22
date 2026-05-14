@@ -416,6 +416,9 @@ button{cursor:pointer;}
 .slog-i{background:var(--p2);border-radius:7px;padding:7px 9px;border-left:3px solid var(--gr);font-size:11px;line-height:1.5;display:flex;gap:6px;}
 .slog-i.fail{border-color:var(--re);}
 </style>
+<!-- Firebase compat SDK (멀티플레이용) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -453,6 +456,57 @@ button{cursor:pointer;}
   </div>
 </div>
 
+<!-- LOBBY SCREEN (멀티플레이) -->
+<div id="lobbyScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;padding:22px;">
+  <h1 style="font-size:28px;font-weight:800;color:var(--ac);margin-bottom:6px;">Eco<span style="color:var(--go)">Nation</span></h1>
+  <h2 style="font-size:18px;font-weight:700;color:var(--tx);margin-bottom:20px;">🌍 멀티플레이 로비</h2>
+
+  <!-- 닉네임 입력 -->
+  <div style="margin-bottom:16px;text-align:center;">
+    <div style="font-size:11px;color:var(--mu);margin-bottom:6px;letter-spacing:1px;">닉네임</div>
+    <input id="mpName" placeholder="닉네임 입력 (최대 10자)" maxlength="10"
+      style="background:var(--p2);border:1px solid var(--bd);border-radius:8px;padding:10px 16px;color:var(--tx);font-size:13px;font-weight:600;outline:none;width:240px;transition:border-color .2s;"
+      onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--bd)'">
+  </div>
+
+  <!-- 방 만들기 / 방 참가 -->
+  <div id="lobby-entry" style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-bottom:20px;">
+    <div style="background:var(--panel);border:2px solid var(--bd);border-radius:12px;padding:20px 24px;text-align:center;min-width:180px;">
+      <div style="font-size:32px;margin-bottom:8px;">🏠</div>
+      <div style="font-size:15px;font-weight:800;margin-bottom:6px;">방 만들기</div>
+      <div style="font-size:11px;color:var(--mu);margin-bottom:12px;line-height:1.5;">새 방을 개설하고<br>친구를 초대하세요.</div>
+      <button onclick="createRoom()"
+        style="width:100%;padding:8px 14px;background:var(--ac);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">방 만들기</button>
+    </div>
+    <div style="background:var(--panel);border:2px solid var(--bd);border-radius:12px;padding:20px 24px;text-align:center;min-width:180px;">
+      <div style="font-size:32px;margin-bottom:8px;">🚪</div>
+      <div style="font-size:15px;font-weight:800;margin-bottom:6px;">방 참가</div>
+      <div style="font-size:11px;color:var(--mu);margin-bottom:8px;line-height:1.5;">친구가 알려준<br>방 코드를 입력하세요.</div>
+      <input id="roomCodeInput" placeholder="방 코드 6자리" maxlength="6"
+        style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:6px 10px;color:var(--tx);font-size:13px;font-weight:700;outline:none;text-align:center;letter-spacing:3px;margin-bottom:8px;text-transform:uppercase;"
+        oninput="this.value=this.value.toUpperCase()">
+      <button onclick="joinRoom()"
+        style="width:100%;padding:8px 14px;background:var(--gr);color:#000;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">참가</button>
+    </div>
+  </div>
+
+  <!-- 대기실 (방 생성/입장 후 표시) -->
+  <div id="waitingRoom" style="display:none;background:var(--panel);border:2px solid var(--bd);border-radius:12px;padding:22px;min-width:320px;max-width:480px;width:100%;text-align:center;">
+    <div style="font-size:12px;color:var(--mu);margin-bottom:4px;letter-spacing:1px;">방 코드</div>
+    <div id="roomCodeDisplay" style="font-size:28px;font-weight:900;color:var(--go);letter-spacing:8px;margin-bottom:14px;"></div>
+    <div style="font-size:11px;color:var(--mu);margin-bottom:12px;">친구에게 이 코드를 알려주세요</div>
+    <div style="font-size:12px;font-weight:700;color:var(--ac);margin-bottom:8px;letter-spacing:1px;">참가자</div>
+    <div id="playerList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;"></div>
+    <button id="startBtn" onclick="mpStartGame()" style="display:none;width:100%;padding:12px;background:linear-gradient(135deg,var(--ac),#8b5cf6);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:1px;">
+      게임 시작 ▶
+    </button>
+    <div id="waitingMsg" style="font-size:11px;color:var(--mu);margin-top:8px;"></div>
+  </div>
+
+  <!-- 뒤로 가기 -->
+  <button onclick="hideLobby()" style="margin-top:18px;background:transparent;border:1px solid var(--bd);color:var(--mu);padding:7px 20px;border-radius:8px;font-size:12px;cursor:pointer;">← 싱글플레이로 돌아가기</button>
+</div>
+
 <!-- SELECT -->
 <div id="sel">
   <h1>Eco<span>Nation</span></h1>
@@ -473,6 +527,12 @@ button{cursor:pointer;}
         <div class="mode-desc">시간 제한 없이 무한히 운영합니다.<br>탄핵·선거 패배만 없으면 영원히 플레이!</div>
         <div class="mode-badge badge-inf">무제한 · 끝없는 도전</div>
       </div>
+    </div>
+    <!-- 멀티플레이 버튼 -->
+    <div style="margin-top:14px;">
+      <button onclick="showLobby()" style="background:var(--panel);border:2px solid var(--bd);border-radius:12px;padding:14px 32px;color:var(--tx);font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px;" onmouseover="this.style.borderColor='var(--go)';this.style.color='var(--go)'" onmouseout="this.style.borderColor='var(--bd)';this.style.color='var(--tx)'">
+        🌍 멀티플레이 (베타)
+      </button>
     </div>
   </div>
 
@@ -3581,6 +3641,267 @@ function startGame(cid){
 }
 buildSel();
 renderSplashRanks();
+
+// ══════════════════════════════════════════════════════
+//  FIREBASE 초기화 & 멀티플레이
+// ══════════════════════════════════════════════════════
+const _fbConfig = {
+  apiKey: "AIzaSyBqZsTexi7kBKrZfo9GYdY0nRyerdk4iIY",
+  authDomain: "wdawd-c5617.firebaseapp.com",
+  databaseURL: "https://wdawd-c5617-default-rtdb.firebaseio.com",
+  projectId: "wdawd-c5617",
+  storageBucket: "wdawd-c5617.firebasestorage.app",
+  messagingSenderId: "939475685934",
+  appId: "1:939475685934:web:f110dc8d6e01dd5fdf05bf"
+};
+let _fbApp = null;
+let db = null;
+try {
+  if (typeof firebase !== 'undefined') {
+    _fbApp = firebase.initializeApp(_fbConfig);
+    db = firebase.database();
+  }
+} catch(e) {
+  console.warn('Firebase 초기화 실패:', e);
+}
+
+// 멀티플레이 전역 상태
+const MP = {
+  enabled: false,
+  roomCode: null,
+  uid: null,
+  isHost: false,
+  slot: 0,
+  playerName: null,
+  _playersRef: null,
+  _playersListener: null,
+};
+
+// 6자리 방 코드 생성
+function genRoomCode() {
+  return Math.random().toString(36).substr(2, 6).toUpperCase();
+}
+
+// UID 생성 (랜덤 8자리)
+function genUID() {
+  return Math.random().toString(36).substr(2, 8);
+}
+
+// 로비 화면 표시
+function showLobby() {
+  const sel = document.getElementById('sel');
+  const lobby = document.getElementById('lobbyScreen');
+  sel.style.display = 'none';
+  lobby.style.display = 'flex';
+  // mpName에 splashNick 값 미리 채우기
+  const nick = document.getElementById('splash-nick').value.trim();
+  if (nick) document.getElementById('mpName').value = nick;
+  // 대기실 초기화
+  document.getElementById('waitingRoom').style.display = 'none';
+  document.getElementById('lobby-entry').style.display = 'flex';
+}
+
+// 로비 숨기기
+function hideLobby() {
+  document.getElementById('lobbyScreen').style.display = 'none';
+  const sel = document.getElementById('sel');
+  sel.style.display = 'flex';
+  document.getElementById('sel-step-mode').style.display = 'block';
+  document.getElementById('sel-step-country').style.display = 'none';
+  // 리스너 정리
+  if (MP._playersRef && MP._playersListener) {
+    MP._playersRef.off('value', MP._playersListener);
+    MP._playersListener = null;
+  }
+  MP.enabled = false;
+  MP.roomCode = null;
+  MP.uid = null;
+  MP.isHost = false;
+}
+
+// 방 만들기
+function createRoom() {
+  if (!db) { alert('Firebase 연결 실패. 인터넷 연결을 확인하세요.'); return; }
+  const name = document.getElementById('mpName').value.trim();
+  if (!name) { alert('닉네임을 입력하세요.'); return; }
+
+  MP.uid = genUID();
+  MP.isHost = true;
+  MP.slot = 0;
+  MP.playerName = name;
+  MP.roomCode = genRoomCode();
+  MP.enabled = true;
+
+  const roomRef = db.ref('rooms/' + MP.roomCode);
+  const myPlayerData = {
+    name: name,
+    slot: 0,
+    connected: true,
+    countryId: null,
+    ready: false,
+  };
+
+  roomRef.set({
+    host: MP.uid,
+    status: 'waiting',
+    players: { [MP.uid]: myPlayerData },
+  }).then(() => {
+    // onDisconnect 설정
+    db.ref('rooms/' + MP.roomCode + '/players/' + MP.uid + '/connected')
+      .onDisconnect().set(false);
+    showWaitingRoom();
+    listenPlayers();
+  }).catch(err => {
+    alert('방 생성 실패: ' + err.message);
+  });
+}
+
+// 방 참가
+function joinRoom() {
+  if (!db) { alert('Firebase 연결 실패. 인터넷 연결을 확인하세요.'); return; }
+  const name = document.getElementById('mpName').value.trim();
+  const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+  if (!name) { alert('닉네임을 입력하세요.'); return; }
+  if (code.length !== 6) { alert('방 코드 6자리를 입력하세요.'); return; }
+
+  const roomRef = db.ref('rooms/' + code);
+  roomRef.once('value').then(snap => {
+    const data = snap.val();
+    if (!data) { alert('존재하지 않는 방입니다.'); return; }
+    if (data.status !== 'waiting') { alert('이미 게임이 시작된 방입니다.'); return; }
+
+    const players = data.players || {};
+    const connectedPlayers = Object.values(players).filter(p => p.connected !== false);
+    if (connectedPlayers.length >= 4) { alert('방이 가득 찼습니다. (최대 4명)'); return; }
+
+    // 슬롯 배정
+    const usedSlots = Object.values(players).map(p => p.slot);
+    let slot = 0;
+    while (usedSlots.includes(slot)) slot++;
+
+    MP.uid = genUID();
+    MP.isHost = false;
+    MP.slot = slot;
+    MP.playerName = name;
+    MP.roomCode = code;
+    MP.enabled = true;
+
+    const myPlayerData = {
+      name: name,
+      slot: slot,
+      connected: true,
+      countryId: null,
+      ready: false,
+    };
+
+    db.ref('rooms/' + code + '/players/' + MP.uid).set(myPlayerData).then(() => {
+      // onDisconnect 설정
+      db.ref('rooms/' + code + '/players/' + MP.uid + '/connected')
+        .onDisconnect().set(false);
+      showWaitingRoom();
+      listenPlayers();
+    }).catch(err => {
+      alert('방 참가 실패: ' + err.message);
+    });
+  }).catch(err => {
+    alert('방 조회 실패: ' + err.message);
+  });
+}
+
+// 대기실 UI 표시
+function showWaitingRoom() {
+  document.getElementById('lobby-entry').style.display = 'none';
+  document.getElementById('waitingRoom').style.display = 'block';
+  document.getElementById('roomCodeDisplay').textContent = MP.roomCode;
+}
+
+// 플레이어 목록 실시간 감지
+function listenPlayers() {
+  MP._playersRef = db.ref('rooms/' + MP.roomCode + '/players');
+  MP._playersListener = MP._playersRef.on('value', snap => {
+    const players = snap.val() || {};
+    renderPlayerList(players);
+    // 게임 시작 버튼 제어 (호스트만, 2명 이상)
+    const connectedCount = Object.values(players).filter(p => p.connected !== false).length;
+    const startBtn = document.getElementById('startBtn');
+    if (MP.isHost) {
+      startBtn.style.display = connectedCount >= 2 ? 'block' : 'none';
+    } else {
+      startBtn.style.display = 'none';
+    }
+    // 대기 메시지
+    const waitMsg = document.getElementById('waitingMsg');
+    if (!MP.isHost) {
+      waitMsg.textContent = '호스트가 게임을 시작할 때까지 대기 중...';
+    } else if (connectedCount < 2) {
+      waitMsg.textContent = '다른 플레이어가 참가할 때까지 기다리세요. (최소 2명)';
+    } else {
+      waitMsg.textContent = `${connectedCount}명 참가 중. 게임을 시작할 수 있습니다!`;
+    }
+  });
+
+  // 게임 시작 신호 감지 (비호스트)
+  if (!MP.isHost) {
+    db.ref('rooms/' + MP.roomCode + '/status').on('value', snap => {
+      if (snap.val() === 'started') {
+        mpEnterGame();
+      }
+    });
+  }
+}
+
+// 플레이어 목록 렌더링
+function renderPlayerList(players) {
+  const list = document.getElementById('playerList');
+  const slotColors = ['var(--ac)', 'var(--gr)', 'var(--wa)', 'var(--re)'];
+  const slotIcons = ['👑', '🎮', '🎮', '🎮'];
+  let html = '';
+  for (let i = 0; i < 4; i++) {
+    const player = Object.values(players).find(p => p.slot === i && p.connected !== false);
+    if (player) {
+      const isMe = Object.keys(players).find(uid => players[uid].slot === i && players[uid].connected !== false) === MP.uid;
+      html += `<div style="display:flex;align-items:center;gap:10px;background:var(--p2);border:1px solid ${slotColors[i]};border-radius:8px;padding:9px 13px;">
+        <span style="font-size:16px;">${i === 0 ? '👑' : '🎮'}</span>
+        <span style="flex:1;font-size:13px;font-weight:700;color:${slotColors[i]};">${player.name}${isMe ? ' <span style="font-size:10px;color:var(--mu)">(나)</span>' : ''}</span>
+        <span style="font-size:10px;color:var(--gr);">● 연결됨</span>
+      </div>`;
+    } else {
+      html += `<div style="display:flex;align-items:center;gap:10px;background:var(--p2);border:1px dashed var(--bd);border-radius:8px;padding:9px 13px;opacity:.5;">
+        <span style="font-size:16px;">⬜</span>
+        <span style="flex:1;font-size:12px;color:var(--mu);">대기 중...</span>
+      </div>`;
+    }
+  }
+  list.innerHTML = html;
+}
+
+// 호스트: 게임 시작
+function mpStartGame() {
+  if (!MP.isHost || !db) return;
+  db.ref('rooms/' + MP.roomCode + '/status').set('started').then(() => {
+    mpEnterGame();
+  });
+}
+
+// 멀티플레이 게임 진입 (국가 선택 화면으로 이동)
+function mpEnterGame() {
+  // 리스너 정리
+  if (MP._playersRef && MP._playersListener) {
+    MP._playersRef.off('value', MP._playersListener);
+    MP._playersListener = null;
+  }
+  document.getElementById('lobbyScreen').style.display = 'none';
+  // 현재는 싱글플레이와 동일하게 국가 선택 화면으로 진행
+  // (2회차 이후에서 멀티 동기화 로직 추가 예정)
+  const sel = document.getElementById('sel');
+  sel.style.display = 'flex';
+  document.getElementById('sel-step-mode').style.display = 'none';
+  document.getElementById('sel-step-country').style.display = 'block';
+  document.getElementById('sel-mode-label').innerHTML =
+    '<span style="color:var(--go);font-weight:700">🌍 멀티플레이 모드</span> — 방 코드: <strong>' + MP.roomCode + '</strong>';
+  // 싱글은 기본 일반모드
+  if (!_selMode) _selMode = 'normal';
+}
 
 // ── 지구 애니메이션 ──────────────────────────────────────
 (function initGlobe(){
