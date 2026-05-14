@@ -457,7 +457,7 @@ button{cursor:pointer;}
 </div>
 
 <!-- LOBBY SCREEN (멀티플레이) -->
-<div id="lobbyScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;padding:22px;">
+<div id="lobbyScreen" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;padding:22px;">
   <h1 style="font-size:28px;font-weight:800;color:var(--ac);margin-bottom:6px;">Eco<span style="color:var(--go)">Nation</span></h1>
   <h2 style="font-size:18px;font-weight:700;color:var(--tx);margin-bottom:20px;">🌍 멀티플레이 로비</h2>
 
@@ -493,7 +493,10 @@ button{cursor:pointer;}
   <!-- 대기실 (방 생성/입장 후 표시) -->
   <div id="waitingRoom" style="display:none;background:var(--panel);border:2px solid var(--bd);border-radius:12px;padding:22px;min-width:320px;max-width:480px;width:100%;text-align:center;">
     <div style="font-size:12px;color:var(--mu);margin-bottom:4px;letter-spacing:1px;">방 코드</div>
-    <div id="roomCodeDisplay" style="font-size:28px;font-weight:900;color:var(--go);letter-spacing:8px;margin-bottom:14px;"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <div id="roomCodeDisplay" style="font-size:28px;font-weight:900;color:var(--go);letter-spacing:8px;"></div>
+      <button onclick="copyRoomCode()" style="background:var(--p2);border:1px solid var(--bd);border-radius:7px;padding:5px 10px;color:var(--mu);font-size:12px;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--go)';this.style.color='var(--go)'" onmouseout="this.style.borderColor='var(--bd)';this.style.color='var(--mu)'">📋 복사</button>
+    </div>
     <div style="font-size:11px;color:var(--mu);margin-bottom:12px;">친구에게 이 코드를 알려주세요</div>
     <div style="font-size:12px;font-weight:700;color:var(--ac);margin-bottom:8px;letter-spacing:1px;">참가자</div>
     <div id="playerList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;"></div>
@@ -735,7 +738,7 @@ button{cursor:pointer;}
     <div id="ds-final-score" style="font-size:28px;font-weight:900;color:#ffd700;font-family:'Georgia',serif;letter-spacing:2px;"></div>
     <div id="ds-rank-pos" style="font-size:13px;color:rgba(255,200,0,.7);margin-top:4px;letter-spacing:1px;"></div>
   </div>
-  <button id="ds-restart" onclick="location.reload()">다시 시작</button>
+  <button id="ds-restart" onclick="restartToSelect()">다시 시작</button>
 </div>
 
 <!-- WAR RESULT OVERLAY -->
@@ -826,7 +829,7 @@ button{cursor:pointer;}
 <button id="mpChatBtn" onclick="toggleChat()" style="display:none;position:fixed;bottom:20px;right:20px;background:#4af;color:#000;border:none;border-radius:50%;width:44px;height:44px;font-size:20px;cursor:pointer;z-index:9998;">💬</button>
 
 <div id="toast"></div>
-<div id="modal"><div class="mbox"><h2 id="mt"></h2><div class="md" id="md"></div><div class="ms" id="ms"></div><div class="mr" id="mr"></div><div class="mc" id="mc"></div><button id="mrst" onclick="location.reload()">다시 시작</button></div></div>
+<div id="modal"><div class="mbox"><h2 id="mt"></h2><div class="md" id="md"></div><div class="ms" id="ms"></div><div class="mr" id="mr"></div><div class="mc" id="mc"></div><button id="mrst" onclick="restartToSelect()">다시 시작</button></div></div>
 
 <script>
 // ══════════════════════════════════════════════════════
@@ -1787,6 +1790,12 @@ function checkEscalation(){
 // ══════════════════════════════════════════════════════
 function nextQ(){
   if(G.gameOver)return;
+  // 멀티플레이에서 클라이언트가 직접 nextQ()를 호출하는 것을 차단
+  // (버튼 onclick은 mpReadyNextQ()로 연결되어 있으나, 직접 호출 시에도 방어)
+  if(MP.enabled && !MP.isHost){
+    console.warn('[MP] 클라이언트가 nextQ()를 직접 호출 — 차단됨. mpReadyNextQ() 사용 권장.');
+    return;
+  }
   if(G.turn>=G.maxTurns){endGame('turns');return;}
   G.turn++; G.pp=2;
 
@@ -3517,8 +3526,30 @@ async function showGameOverScore(result){
   rp.textContent=pos<=3?`🏆 글로벌 ${pos}위!`:pos<=10?`🌐 글로벌 ${pos}위 기록`:'기록 업로드 완료';
 }
 function endGame(reason){
+  // 멀티플레이에서 지지율/탄핵/내전으로 인한 게임오버는 관전 모드 전환
+  if (MP.enabled && reason !== 'turns') {
+    G.gameOver = true; // 내 입력은 막음
+    const p = P();
+    const rank = [...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.isPlayer&&c.playerUid===MP.uid)+1;
+    toast(`💀 게임오버 (${reason}) — 관전 모드 전환. 순위: ${rank}위`, 'bad');
+    G.evLog.unshift({text:`💀 ${p.flag}${p.name} (${MP.playerName}) 게임오버 — 관전 모드로 전환됩니다.`, type:'bad', turn:G.turn});
+    mpPushEvLog();
+    // 관전 모드: 다음 분기 버튼 비활성화, HUD 업데이트
+    const btn = document.getElementById('btn-nxt');
+    if (btn) { btn.disabled = true; btn.textContent = '💀 게임오버 (관전 중)'; btn.style.background = 'var(--re)'; btn.style.color = '#fff'; }
+    renderAll();
+    // 게임오버 연출만 보여주고 관전 유지
+    if (reason==='protest') {
+      showDarkSouls({ mainText:'탄핵', subTitle:`지지율 ${G.approval}%`, subName:'대규모 시위 끝에 탄핵 가결', subCountry:`GDP 순위 ${rank}위`, permanent:false });
+    } else if (reason==='election') {
+      showDarkSouls({ mainText:'선거 패배', subTitle:`지지율 ${G.approval}%`, subName:'야당에게 정권을 내줬습니다', subCountry:`순위 ${rank}위`, permanent:false });
+    } else if (reason==='civilwar') {
+      showDarkSouls({ mainText:'국가 붕괴', subTitle:'내전 — 정부군 와해', subName:'수도가 반란군에 함락됨', subCountry:`지지율 ${G.approval}%`, permanent:false });
+    }
+    return;
+  }
   G.gameOver=true;
-  // 멀티플레이 세션 정리
+  // 멀티플레이 세션 정리 (일반 모드 40분기 완료 또는 싱글플레이)
   localStorage.removeItem('mp_session');
   if (MP.enabled && db && MP.roomCode) {
     db.ref('rooms/' + MP.roomCode + '/status').set('ended').catch(()=>{});
@@ -3578,11 +3609,15 @@ function endGame(reason){
 function goPage(n){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('page-'+n).classList.add('active');
-  document.querySelectorAll('.ntab')[['dash','trade','diplo','spy'].indexOf(n)].classList.add('active');
+  const pageEl=document.getElementById('page-'+n);
+  if(pageEl)pageEl.classList.add('active');
+  const tabIdx=['dash','trade','diplo','spy','tech'].indexOf(n);
+  const tabs=document.querySelectorAll('.ntab');
+  if(tabIdx>=0&&tabs[tabIdx])tabs[tabIdx].classList.add('active');
   if(n==='trade'){renderTradeTabs();renderTradeTable();renderInventory();renderFX();renderTradeStats();}
   if(n==='diplo'){renderDCards();renderRLog();renderDLog();renderRelOver();renderWGPanel();}
   if(n==='spy'){renderSpy();renderClimate('climate-pnl');}
+  if(n==='tech'){renderTechTree();}
 }
 let _tt;
 function toast(msg,type='info'){
@@ -3806,6 +3841,47 @@ function startGame(cid){
   toast(`${P().flag} ${P().name} 재무장관 취임! 시민 지지율을 유지하세요.`,'good');
   showTutorial();
 }
+// 다시 시작: 멀티플레이 세션 정리 후 선택 화면으로 복귀
+function restartToSelect() {
+  // 멀티플레이 세션 정리
+  if (MP.enabled && db && MP.roomCode && MP.uid) {
+    db.ref('rooms/' + MP.roomCode + '/players/' + MP.uid + '/connected').set(false).catch(()=>{});
+  }
+  localStorage.removeItem('mp_session');
+  // 상태 초기화
+  MP.enabled = false; MP.roomCode = null; MP.uid = null; MP.isHost = false;
+  MP._myCountryId = null; MP._myReady = false; MP._originalHost = null;
+  MP._listenReadyActive = false; _mpAdvancingTurn = false;
+  // UI 초기화
+  document.getElementById('ds-overlay').classList.remove('active');
+  document.getElementById('modal').classList.remove('open');
+  document.getElementById('nav').style.display = 'none';
+  document.getElementById('mpHud').style.display = 'none';
+  document.getElementById('mpPlayerPanel').style.display = 'none';
+  document.getElementById('mpChat').style.display = 'none';
+  document.getElementById('mpChatBtn').style.display = 'none';
+  const ss = document.getElementById('mpReadyStatus');
+  if (ss) ss.style.display = 'none';
+  // 국가 선택 화면 초기화
+  const sel = document.getElementById('sel');
+  sel.style.display = 'flex';
+  document.getElementById('sel-step-mode').style.display = 'block';
+  document.getElementById('sel-step-country').style.display = 'none';
+  buildSel();
+}
+
+// 방 코드 복사
+function copyRoomCode() {
+  if (!MP.roomCode) return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(MP.roomCode).then(() => toast('방 코드 복사됨!', 'good')).catch(() => {
+      prompt('방 코드를 복사하세요:', MP.roomCode);
+    });
+  } else {
+    prompt('방 코드를 복사하세요:', MP.roomCode);
+  }
+}
+
 buildSel();
 renderSplashRanks();
 
@@ -3825,14 +3901,24 @@ let _fbApp = null;
 let db = null;
 try {
   if (typeof firebase !== 'undefined') {
-    _fbApp = firebase.initializeApp(_fbConfig);
+    // 이미 초기화된 앱이 있으면 재사용, 없으면 새로 생성 (중복 초기화 방지)
+    if (firebase.apps && firebase.apps.length > 0) {
+      _fbApp = firebase.apps[0];
+    } else {
+      _fbApp = firebase.initializeApp(_fbConfig);
+    }
     db = firebase.database();
+    console.info('[EcoNation MP] Firebase 규칙 설정 필요:\n' +
+      'Firebase Console → Realtime Database → 규칙 탭 → 아래 내용으로 변경:\n' +
+      '{ "rules": { ".read": true, ".write": true } }\n' +
+      '(테스트 모드에서는 이미 설정됨)');
   }
 } catch(e) {
   console.warn('Firebase 초기화 실패:', e);
 }
 
 // 멀티플레이 전역 상태
+let _mpAdvancingTurn = false; // mpAdvanceTurn() 레이스 컨디션 방지
 const MP = {
   enabled: false,
   roomCode: null,
@@ -3915,12 +4001,13 @@ function hideLobby() {
   MP._myReady = false;
   MP._originalHost = null;
   MP._listenReadyActive = false;
+  _mpAdvancingTurn = false;
   localStorage.removeItem('mp_session');
 }
 
 // 방 만들기
 function createRoom() {
-  if (!db) { alert('Firebase 연결 실패. 인터넷 연결을 확인하세요.'); return; }
+  if (!db) { alert('Firebase 연결 실패.\n인터넷 연결을 확인하거나 페이지를 새로 고침하세요.\n\n방화벽이나 광고 차단 프로그램이 Firebase를 차단할 수 있습니다.'); return; }
   const name = document.getElementById('mpName').value.trim();
   if (!name) { alert('닉네임을 입력하세요.'); return; }
 
@@ -3961,7 +4048,7 @@ function createRoom() {
 
 // 방 참가
 function joinRoom() {
-  if (!db) { alert('Firebase 연결 실패. 인터넷 연결을 확인하세요.'); return; }
+  if (!db) { alert('Firebase 연결 실패.\n인터넷 연결을 확인하거나 페이지를 새로 고침하세요.\n\n방화벽이나 광고 차단 프로그램이 Firebase를 차단할 수 있습니다.'); return; }
   const name = document.getElementById('mpName').value.trim();
   const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
   if (!name) { alert('닉네임을 입력하세요.'); return; }
@@ -3970,8 +4057,9 @@ function joinRoom() {
   const roomRef = db.ref('rooms/' + code);
   roomRef.once('value').then(snap => {
     const data = snap.val();
-    if (!data) { alert('존재하지 않는 방입니다.'); return; }
-    if (data.status !== 'waiting') { alert('이미 게임이 시작된 방입니다.'); return; }
+    if (!data) { alert('존재하지 않는 방입니다.\n방 코드를 다시 확인해 주세요: ' + code); return; }
+    if (data.status === 'ended') { alert('이미 종료된 방입니다.'); return; }
+    if (data.status !== 'waiting') { alert('이미 게임이 시작된 방입니다.\n게임 중인 방에는 참가할 수 없습니다.'); return; }
 
     const players = data.players || {};
     const connectedPlayers = Object.values(players).filter(p => p.connected !== false);
@@ -4618,18 +4706,25 @@ function listenReady() {
 }
 
 // 호스트만 실행: ready 초기화 → nextQ() → mpPushGameState()
+// 레이스 컨디션 방지: 동시 다중 호출 차단 (_mpAdvancingTurn 전역 선언됨)
 async function mpAdvanceTurn() {
   if (!MP.isHost || !db) return;
-  // 1. ready 초기화
-  await db.ref('rooms/' + MP.roomCode + '/ready').set({});
-  // 2. 모든 플레이어 _myReady 리셋은 각자 리스너에서 처리; 호스트 자신도 리셋
-  MP._myReady = false;
-  updateNextQBtn();
-  // 3. nextQ() 실행 (기존 분기 진행 로직)
-  nextQ();
-  // 4. 변경된 게임 상태를 Firebase에 push (nextQ() 내부에서 gameOver 체크 포함)
-  if (!G.gameOver) {
-    mpPushGameState();
+  if (_mpAdvancingTurn) return; // 이미 진행 중이면 무시
+  _mpAdvancingTurn = true;
+  try {
+    // 1. ready 초기화 (한 번만 실행되도록 트랜잭션 대신 즉시 set)
+    await db.ref('rooms/' + MP.roomCode + '/ready').set({});
+    // 2. 모든 플레이어 _myReady 리셋은 각자 리스너에서 처리; 호스트 자신도 리셋
+    MP._myReady = false;
+    updateNextQBtn();
+    // 3. nextQ() 실행 (기존 분기 진행 로직)
+    nextQ();
+    // 4. 변경된 게임 상태를 Firebase에 push (nextQ() 내부에서 gameOver 체크 포함)
+    if (!G.gameOver) {
+      mpPushGameState();
+    }
+  } finally {
+    _mpAdvancingTurn = false;
   }
 }
 
