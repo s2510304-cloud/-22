@@ -1845,6 +1845,8 @@ function nextQ(){
   document.getElementById('qb').textContent=`${qLabel} / ${maxLabel}`;
   if(!G.infiniteMode&&G.turn>=G.maxTurns)endGame('turns');
   else{renderAll();const rem=G.infiniteMode?'∞':`${G.maxTurns-G.turn}분기 남음`;toast(`${qLabel} 시작 (${rem})`,'info');}
+  // 멀티플레이: 클라이언트는 분기 후 내 stats 동기화 (호스트는 mpPushGameState()로 전체 동기화)
+  if (MP.enabled && !MP.isHost) mpSyncMyStats();
 }
 
 // ══════════════════════════════════════════════════════
@@ -1893,6 +1895,7 @@ function buyGood(cid,gid){
   const pf=G.portfolio[gid]||{qty:0,totalCost:0};
   pf.qty+=qty; pf.totalCost+=cost; G.portfolio[gid]=pf;
   toast(`${g.emoji} ${g.name} ${qty}${g.unit} 수입 ($${fmt(cost)}) — 이번 분기 ${G.tradeBought[gid]}/${TRADE_LIMIT}회`,'good'); renderAll();
+  if (MP.enabled) mpSyncMyStats();
 }
 function sellGood(gid,qty){
   qty=qty||1;
@@ -1915,6 +1918,7 @@ function sellGood(gid,qty){
   const pf=G.portfolio[gid];
   if(pf){pf.qty=Math.max(0,pf.qty-qty);if(pf.qty===0)delete G.portfolio[gid];}
   toast(`${g.emoji} ${g.name} ${qty}${g.unit} → ${c.flag}${c.name} 수출 ($${fmt(rev)}) — ${G.tradeSold[gid]}/${TRADE_LIMIT}회`,'good'); renderAll();
+  if (MP.enabled) mpSyncMyStats();
 }
 function setTariff(cid,v){const c=C(cid);if(c)c.tariff=Math.max(0,Math.min(100,parseInt(v)||0));renderTradeTable();}
 
@@ -2593,6 +2597,7 @@ function researchTech(id){
   G.evLog.unshift({text:`🔬 [기술] ${tech.icon} ${tech.name} 연구 완료!`,type:'good',turn:G.turn});
   toast(`${tech.icon} ${tech.name} 연구 완료!`,'good');
   renderAll();
+  if (MP.enabled) mpSyncMyStats();
 }
 function renderTechTree(){
   const el1=document.getElementById('tech-grid-1');
@@ -3090,9 +3095,10 @@ function renderLB(){
   document.getElementById('lb').innerHTML=s.map((c,i)=>{
     const isMe = c.isPlayer && (!MP.enabled || c.playerUid === MP.uid);
     const isOtherPlayer = MP.enabled && c.isPlayer && c.playerUid && c.playerUid !== MP.uid;
-    const nameTag = isMe ? ' (나)' : (isOtherPlayer ? ' 👤' : '');
+    const playerBadge = isOtherPlayer ? `<span style="background:#4af;color:#000;border-radius:3px;padding:1px 4px;font-size:10px;margin-left:3px;">👤</span>` : '';
+    const nameTag = isMe ? ' <span style="font-size:10px;color:var(--ac);font-weight:700;">(나)</span>' : '';
     const rowCls = isMe ? 'me' : '';
-    return `<div class="lbi ${rowCls}"><div class="lr">${rk[i]||i+1}</div><div class="lf">${c.flag}</div><div class="li"><div class="n">${c.name}${nameTag}</div><div class="g">${c.gro>=0?'+':''}${c.gro.toFixed(1)}%</div></div><div class="lg">${fG(c.gdp)}</div></div>`;
+    return `<div class="lbi ${rowCls}"><div class="lr">${rk[i]||i+1}</div><div class="lf">${c.flag}</div><div class="li"><div class="n">${c.name}${nameTag}${playerBadge}</div><div class="g">${c.gro>=0?'+':''}${c.gro.toFixed(1)}%</div></div><div class="lg">${fG(c.gdp)}</div></div>`;
   }).join('');
 }
 
@@ -4119,6 +4125,25 @@ function mpPushGameState() {
   });
   db.ref('rooms/' + MP.roomCode + '/gameState').set(snapshot).catch(err => {
     console.warn('mpPushGameState 실패:', err);
+  });
+}
+
+// D. 내 플레이어 국가 stats만 Firebase에 반영 (클라이언트용)
+function mpSyncMyStats() {
+  if (!MP.enabled || MP.isHost || !db || !MP.roomCode) return;
+  const p = P();
+  if (!p) return;
+  db.ref('rooms/' + MP.roomCode + '/gameState/countries/' + p.id).update({
+    bud: p.bud,
+    bal: p.bal,
+    gdp: p.gdp,
+    gro: p.gro,
+    mil: p.mil,
+    debt: p.debt,
+    unemp: p.unemp,
+    infl: p.infl,
+  }).catch(err => {
+    console.warn('mpSyncMyStats 실패:', err);
   });
 }
 
