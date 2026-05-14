@@ -1333,6 +1333,7 @@ function initGame(pid,mode){
 }
 const P=()=>G.countries.find(c=>c.id===G.pid);
 const AI=()=>G.countries.filter(c=>c.id!==G.pid);
+const REAL_AI=()=>G.countries.filter(c=>!c.isPlayer); // 실제 AI 국가만 (멀티플레이 다른 플레이어 제외)
 const C=id=>G.countries.find(c=>c.id===id);
 
 // ══════════════════════════════════════════════════════
@@ -1826,8 +1827,8 @@ function nextQ(){
     if(ev.gdpFx)G.countries.forEach(c=>{c.gro+=ev.gdpFx*(0.5+Math.random());});
   }
 
-  // AI 시뮬
-  AI().forEach(c=>{
+  // AI 시뮬 (멀티플레이에서는 실제 AI 국가만 — 다른 플레이어 국가는 건드리지 않음)
+  REAL_AI().forEach(c=>{
     c.gro+=(Math.random()-.45)*1.2; c.gro=Math.max(-4,Math.min(12,c.gro));
     c.gdp=Math.max(100,c.gdp*(1+c.gro/100));
     c.unemp=Math.max(.5,Math.min(20,c.unemp+(Math.random()-.5)*.4));
@@ -4720,7 +4721,7 @@ function mpApplyGameState(state) {
     G.totExp = 0;
     G.totImp = 0;
     // 내 나라 기본 경제 성장 적용
-    const p = G.countries.find(c => c.playerUid === MP.uid);
+    const p = P();
     if (p) {
       p.gro = Math.max(-5, Math.min(20, p.gro));
       p.gdp = Math.max(100, p.gdp * (1 + p.gro / 100));
@@ -4742,8 +4743,11 @@ function mpApplyGameState(state) {
 function mpReadyNextQ() {
   if (!MP.enabled) { nextQ(); return; }
   const myReady = MP._myReady;
-  MP._myReady = !myReady;
-  db.ref('rooms/' + MP.roomCode + '/ready/' + MP.uid).set(!myReady).catch(err => {
+  const newReady = !myReady;
+  // 준비 표시 전 내 stats 동기화 (호스트가 nextQ 전에 최신 데이터 읽어갈 수 있도록)
+  if (newReady && !MP.isHost) mpSyncMyStats();
+  MP._myReady = newReady;
+  db.ref('rooms/' + MP.roomCode + '/ready/' + MP.uid).set(newReady).catch(err => {
     console.warn('ready 상태 저장 실패:', err);
     MP._myReady = myReady; // 실패 시 롤백
   });
@@ -4829,14 +4833,30 @@ async function mpAdvanceTurn() {
   if (_mpAdvancingTurn) return; // 이미 진행 중이면 무시
   _mpAdvancingTurn = true;
   try {
-    // 1. ready 초기화 (한 번만 실행되도록 트랜잭션 대신 즉시 set)
+    // 1. ready 초기화
     await db.ref('rooms/' + MP.roomCode + '/ready').set({});
-    // 2. 모든 플레이어 _myReady 리셋은 각자 리스너에서 처리; 호스트 자신도 리셋
     MP._myReady = false;
     updateNextQBtn();
-    // 3. nextQ() 실행 (기존 분기 진행 로직)
+    // 2. 다른 플레이어 국가의 최신 stats 가져와서 로컬 G에 반영
+    //    (클라이언트들이 준비 버튼 누를 때 mpSyncMyStats()로 올린 데이터)
+    try {
+      const gsSnap = await db.ref('rooms/' + MP.roomCode + '/gameState/countries').once('value');
+      const latestCountries = gsSnap.val() || {};
+      Object.entries(latestCountries).forEach(([cid, data]) => {
+        if (cid === G.pid) return; // 호스트 자신은 건드리지 않음
+        const c = G.countries.find(x => x.id === cid);
+        if (c && c.isPlayer) { // 다른 플레이어 국가만
+          ['gdp','gro','mil','bud','debt','unemp','infl','bal'].forEach(k => {
+            if (data[k] !== undefined) c[k] = data[k];
+          });
+        }
+      });
+    } catch(e) {
+      console.warn('[MP] 플레이어 stats 동기화 실패:', e);
+    }
+    // 3. nextQ() 실행 (REAL_AI만 시뮬하므로 다른 플레이어 stats 보존됨)
     nextQ();
-    // 4. 변경된 게임 상태를 Firebase에 push (nextQ() 내부에서 gameOver 체크 포함)
+    // 4. 변경된 게임 상태를 Firebase에 push
     if (!G.gameOver) {
       mpPushGameState();
     }
