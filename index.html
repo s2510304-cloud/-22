@@ -177,10 +177,30 @@ button{cursor:pointer;}
 #splash-btn:hover{transform:scale(1.05);}
 @keyframes splash-glow{0%,100%{box-shadow:0 0 20px rgba(108,99,255,.4);}50%{box-shadow:0 0 50px rgba(108,99,255,.8),0 0 80px rgba(108,99,255,.3);}}
 @keyframes splash-in{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
-#splash-ver{font-size:10px;color:rgba(255,255,255,.2);margin-top:24px;letter-spacing:2px;animation:splash-in .6s ease .5s both;}
-#splash-layout{position:relative;display:flex;align-items:center;gap:60px;max-width:900px;padding:0 32px;}
-#globe-canvas{width:260px;height:260px;flex-shrink:0;animation:splash-in .8s ease both;filter:drop-shadow(0 0 40px rgba(108,99,255,.5));}
-@media(max-width:680px){#splash-layout{flex-direction:column;gap:24px;}#globe-canvas{width:180px;height:180px;}}
+#splash-ver{font-size:10px;color:rgba(255,255,255,.2);margin-top:16px;letter-spacing:2px;animation:splash-in .6s ease .5s both;}
+#splash-nick-wrap{display:flex;align-items:center;gap:8px;margin-bottom:14px;animation:splash-in .6s ease .35s both;}
+#splash-nick-label{font-size:11px;color:rgba(255,255,255,.4);letter-spacing:1px;white-space:nowrap;}
+#splash-nick{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:8px 14px;color:#fff;font-size:13px;font-weight:600;outline:none;width:220px;transition:border-color .2s;}
+#splash-nick:focus{border-color:rgba(108,99,255,.8);}
+#splash-nick::placeholder{color:rgba(255,255,255,.25);font-weight:400;}
+#splash-layout{position:relative;display:flex;align-items:center;gap:60px;max-width:920px;padding:0 32px;}
+#globe-canvas{width:240px;height:240px;flex-shrink:0;animation:splash-in .8s ease both;filter:drop-shadow(0 0 40px rgba(108,99,255,.5));}
+/* RANKINGS */
+#splash-ranks-section{width:100%;max-width:880px;margin-top:28px;animation:splash-in .6s ease .6s both;}
+#splash-ranks-header{font-size:12px;letter-spacing:3px;color:rgba(255,215,0,.7);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+#splash-ranks-header::after{content:'';flex:1;height:1px;background:rgba(255,215,0,.15);}
+#splash-ranks-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px;}
+.srank-row{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:8px 12px;}
+.srank-pos{font-size:16px;font-weight:900;width:28px;text-align:center;flex-shrink:0;}
+.srank-pos.gold{color:#ffd700;}.srank-pos.silver{color:#c0c0c0;}.srank-pos.bronze{color:#cd7f32;}
+.srank-pos.other{color:rgba(255,255,255,.4);}
+.srank-info{flex:1;min-width:0;}
+.srank-name{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.srank-detail{font-size:10px;color:rgba(255,255,255,.35);margin-top:1px;}
+.srank-score{font-size:14px;font-weight:900;color:#ffd700;white-space:nowrap;}
+#splash-clear-btn{margin-top:10px;background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:6px;color:rgba(255,255,255,.25);font-size:10px;padding:4px 10px;cursor:pointer;transition:all .2s;}
+#splash-clear-btn:hover{border-color:rgba(255,80,80,.4);color:rgba(255,100,100,.6);}
+@media(max-width:680px){#splash-layout{flex-direction:column;gap:20px;}#globe-canvas{width:160px;height:160px;}#splash-ranks-list{grid-template-columns:1fr;}}
 /* SELECT */
 #sel{position:fixed;inset:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:22px;}
 #sel h1{font-size:36px;font-weight:800;color:var(--ac);margin-bottom:4px;}
@@ -402,9 +422,18 @@ button{cursor:pointer;}
         <span>⚔️ 전쟁·핵무기</span>
         <span>🔬 기술 개발</span>
       </div>
+      <div id="splash-nick-wrap">
+        <span id="splash-nick-label">닉네임</span>
+        <input type="text" id="splash-nick" placeholder="플레이어명 입력 (최대 10자)" maxlength="10" oninput="this.value=this.value.slice(0,10)">
+      </div>
       <button id="splash-btn" onclick="enterSel()">게임 시작 →</button>
       <div id="splash-ver">v1.0 · EcoNation</div>
     </div>
+  </div>
+  <div id="splash-ranks-section">
+    <div id="splash-ranks-header">🏆 명예의 전당</div>
+    <div id="splash-ranks-list"><div style="color:rgba(255,255,255,.3);font-size:12px;text-align:center;padding:16px">아직 기록이 없습니다. 첫 번째 기록을 남겨보세요!</div></div>
+    <button id="splash-clear-btn" onclick="clearRankings()">기록 초기화</button>
   </div>
 </div>
 
@@ -600,6 +629,10 @@ button{cursor:pointer;}
     <div id="ds-victim-title"></div>
     <div id="ds-victim-name"></div>
     <div id="ds-victim-country"></div>
+  </div>
+  <div id="ds-score-area" style="display:none;margin-top:18px;text-align:center;">
+    <div id="ds-final-score" style="font-size:28px;font-weight:900;color:#ffd700;font-family:'Georgia',serif;letter-spacing:2px;"></div>
+    <div id="ds-rank-pos" style="font-size:13px;color:rgba(255,200,0,.7);margin-top:4px;letter-spacing:1px;"></div>
   </div>
   <button id="ds-restart" onclick="location.reload()">다시 시작</button>
 </div>
@@ -2981,6 +3014,16 @@ function renderRelOver(){
 // ══════════════════════════════════════════════════════
 //  GAME END
 // ══════════════════════════════════════════════════════
+function showGameOverScore(result){
+  const {score,pos}=saveScore(result);
+  const area=document.getElementById('ds-score-area');
+  const fs=document.getElementById('ds-final-score');
+  const rp=document.getElementById('ds-rank-pos');
+  if(!area)return;
+  area.style.display='block';
+  fs.textContent=`${score.toLocaleString()} pt`;
+  rp.textContent=pos<=10?`🏆 전체 ${pos}위 기록!`:'기록 저장 완료';
+}
 function endGame(reason){
   G.gameOver=true;
   const p=P(),rank=[...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.isPlayer)+1;
@@ -2993,6 +3036,7 @@ function endGame(reason){
       subCountry:`GDP 순위 ${rank}위 기록`,
       permanent:true
     });
+    setTimeout(()=>showGameOverScore('탄핵'),2500);
   } else if(reason==='election'){
     showDarkSouls({
       mainText:'선거 패배',
@@ -3001,6 +3045,7 @@ function endGame(reason){
       subCountry:`Y${Math.ceil(G.turn/4)} · ${rank}위 마감`,
       permanent:true
     });
+    setTimeout(()=>showGameOverScore('선거패배'),2500);
   } else if(reason==='civilwar'){
     showDarkSouls({
       mainText:'국가 붕괴',
@@ -3009,14 +3054,17 @@ function endGame(reason){
       subCountry:`지지율 ${G.approval}% · 군사력 ${Math.round(p.mil)}`,
       permanent:true
     });
+    setTimeout(()=>showGameOverScore('내전'),2500);
   } else {
     const rn=['','🥇 GDP 1위','🥈 2위','🥉 3위','4위','5위','꼴찌'];
     const mt=document.getElementById('mt'),md=document.getElementById('md'),ms=document.getElementById('ms'),mr=document.getElementById('mr'),mc=document.getElementById('mc');
     const cm=['','경제 대통령! 세계를 이끄는 강국이 되었습니다!','아깝네요! 조금만 더!','선전했습니다!','중위권입니다.','아쉬운 결과.','경제 위기. 다시 도전!'];
+    const {score,pos}=saveScore('완료');
     mt.textContent='📊 최종 결과'; mt.style.color='var(--go)';
-    md.textContent=`20분기 운영 완료 · 최종 지지율: ${G.approval}%`;
+    md.textContent=`${G.turn}분기 운영 완료 · 지지율: ${G.approval}% · 점수: ${score.toLocaleString()}pt`;
     ms.textContent=fG(p.gdp); ms.style.color='var(--ac)';
-    mr.textContent=rn[rank]||''; mc.textContent=cm[rank]||'';
+    mr.textContent=rn[rank]||'';
+    mc.textContent=(pos<=3?`🏆 전체 ${pos}위! `:'')+(cm[rank]||'');
     document.getElementById('modal').classList.add('open');
   }
 }
@@ -3128,11 +3176,57 @@ function endTutorial(){
   document.getElementById('tut-overlay').classList.remove('active');
 }
 
+// ══ 랭킹 시스템 ═══════════════════════════════════════
+const RANKS_KEY='econation_v1_ranks';
+let _playerName='플레이어';
+function getRankings(){try{return JSON.parse(localStorage.getItem(RANKS_KEY))||[];}catch{return[];}}
+function clearRankings(){if(confirm('기록을 모두 초기화할까요?')){localStorage.removeItem(RANKS_KEY);renderSplashRanks();}}
+function calcScore(){
+  if(!G||!G.countries)return 0;
+  const p=P();
+  const techs=G.techsOwned?G.techsOwned.size:0;
+  const ftas=AI().filter(c=>c.relation==='deal').length;
+  return Math.max(0,Math.round(p.gdp*3+Math.max(0,p.bud)*0.8+G.approval*600+G.turn*250+techs*600+ftas*400));
+}
+function saveScore(result){
+  const score=calcScore();
+  const p=P();
+  const entry={
+    name:_playerName||'익명',score,
+    country:`${p.flag} ${p.name}`,
+    mode:G.infiniteMode?'무한':'일반',
+    turns:G.turn,gdp:Math.round(p.gdp),
+    result,date:new Date().toLocaleDateString('ko-KR')
+  };
+  const ranks=getRankings();
+  ranks.push(entry);
+  ranks.sort((a,b)=>b.score-a.score);
+  ranks.splice(10);
+  localStorage.setItem(RANKS_KEY,JSON.stringify(ranks));
+  return{score,pos:ranks.findIndex(r=>r.name===entry.name&&r.score===entry.score)+1};
+}
+function renderSplashRanks(){
+  const list=document.getElementById('splash-ranks-list');if(!list)return;
+  const ranks=getRankings();
+  if(!ranks.length){list.innerHTML='<div style="color:rgba(255,255,255,.3);font-size:12px;text-align:center;padding:16px">아직 기록이 없습니다. 첫 번째 기록을 남겨보세요!</div>';return;}
+  const medals=['gold','silver','bronze'];
+  list.innerHTML=ranks.map((r,i)=>`
+    <div class="srank-row">
+      <div class="srank-pos ${medals[i]||'other'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+      <div class="srank-info">
+        <div class="srank-name">${r.name}</div>
+        <div class="srank-detail">${r.country} · ${r.mode} · Q${r.turns} · ${r.date}</div>
+      </div>
+      <div class="srank-score">${r.score.toLocaleString()}</div>
+    </div>`).join('');
+}
 function toggleTheme(){
   document.body.classList.toggle('light');
   document.getElementById('btn-theme').textContent=document.body.classList.contains('light')?'🌙':'☀️';
 }
 function enterSel(){
+  const nick=document.getElementById('splash-nick').value.trim();
+  _playerName=nick||'익명';
   const sp=document.getElementById('splash');
   sp.style.transition='opacity .4s';
   sp.style.opacity='0';
@@ -3154,6 +3248,7 @@ function startGame(cid){
   showTutorial();
 }
 buildSel();
+renderSplashRanks();
 
 // ── 지구 애니메이션 ──────────────────────────────────────
 (function initGlobe(){
