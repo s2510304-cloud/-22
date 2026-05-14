@@ -1841,7 +1841,7 @@ function nextQ(){
   p.gdp=Math.max(100,p.gdp*(1+p.gro/100));
   p.bal+=(G.totExp-G.totImp)/10;
   // 무역 수익: 매 턴 재정 반영
-  const _expRev = Math.round(G.totExp * 9);   // 수출 총액의 9% 마진
+  const _expRev = Math.round(G.totExp * 3);   // 수출 총액의 3% 마진
   const _impCost = Math.round(G.totImp * 4);  // 수입 총액의 4% 관세·물류비
   const _ftaBonus = AI().filter(c=>c.relation==='deal').length * 18;
   const _allianceBonus = AI().filter(c=>c.relation==='alliance').length * 35; // 동맹 1개국당 +35억
@@ -1965,7 +1965,8 @@ function buyGood(cid,gid){
   if(c.relation==='military_war'){toast('🚫 무역 금지 — 교전국과는 거래 불가','bad');return;}
   if((G.tradeBought[gid]||0)>=TRADE_LIMIT){toast(`⏳ ${g.name} 이번 분기 수입 한도 초과 (${TRADE_LIMIT}회)`,'bad');return;}
   const envM=G.envMult?.[gid]||1;
-  const cost=Math.round(c.prices[gid]*(1+(c.tariff||0)/100)*(G.warPremium||1)*envM)*qty;
+  // 수입: 기본 관세 20% + 플레이어 관세 추가
+  const cost=Math.round(c.prices[gid]*(1.2+(c.tariff||0)/100)*(G.warPremium||1)*envM)*qty;
   if(cost>p.bud){toast('예산 부족','bad');return;}
   p.bud-=cost; G.inv[gid]=(G.inv[gid]||0)+qty;
   G.totImp+=cost/100; p.bal-=cost/1000;
@@ -1987,10 +1988,10 @@ function sellGood(gid,qty){
   if((G.tradeSold[gid]||0)>=TRADE_LIMIT){toast(`⏳ ${GOODS.find(x=>x.id===gid).name} 이번 분기 수출 한도 초과 (${TRADE_LIMIT}회)`,'bad');return;}
   const g=GOODS.find(x=>x.id===gid),p=P();
   const envM=G.envMult?.[gid]||1;
-  // 수출: 시장가의 45% (운송비·수수료·통관료·환율손실 55% 차감)
+  // 수출: 시장가의 30% (운송비·수수료·통관료·환율손실 70% 차감)
   if((G.inv['oil']||0)<1){toast('⛽ 연료 부족 — 수출에 원유 1단위 필요','bad');return;}
   G.inv['oil']=(G.inv['oil']||0)-1;
-  const rev=Math.round(c.prices[gid]*(G.warPremium||1)*envM*0.45)*qty;
+  const rev=Math.round(c.prices[gid]*(G.warPremium||1)*envM*0.30)*qty;
   p.bud+=rev; G.inv[gid]-=qty; G.totExp+=rev/100; p.bal+=rev/1000;
   G.tradeSold[gid]=(G.tradeSold[gid]||0)+1;
   // 시장 충격: 많이 팔수록 해당 국가 가격 하락
@@ -3305,7 +3306,7 @@ function renderTradeTable(){
       <td style="font-weight:700;color:${inflated?'var(--re)':'var(--ac)'}">$${fin.toLocaleString()}${inflated?'<span style="font-size:9px"> ▲</span>':''}</td>
       <td><div style="display:flex;gap:3px;justify-content:flex-end;align-items:center;flex-wrap:wrap;">
         <button class="bb" onclick="buyGood('${c.id}','${g.id}')" ${(G.tradeBought[g.id]||0)>=TRADE_LIMIT?'disabled style="opacity:.4;cursor:not-allowed"':''}>수입${(G.tradeBought[g.id]||0)>0?` (${G.tradeBought[g.id]}/${TRADE_LIMIT})`:''}</button>
-        ${inv>0?`<button class="bs" onclick="sellGood('${g.id}')" ${((G.tradeSold[g.id]||0)>=TRADE_LIMIT||(G.tradeBought[g.id]||0)>0)?'disabled style="opacity:.4;cursor:not-allowed"':''}>수출 $${Math.round(c.prices[g.id]*0.45).toLocaleString()} ⛽-1 (재고 ${inv})${(G.tradeBought[g.id]||0)>0?' 🔒':''}</button>`:''}
+        ${inv>0?`<button class="bs" onclick="sellGood('${g.id}')" ${((G.tradeSold[g.id]||0)>=TRADE_LIMIT||(G.tradeBought[g.id]||0)>0)?'disabled style="opacity:.4;cursor:not-allowed"':''}>수출 $${Math.round(c.prices[g.id]*0.30).toLocaleString()} ⛽-1 (재고 ${inv})${(G.tradeBought[g.id]||0)>0?' 🔒':''}</button>`:''}
       </div></td>
     </tr>`;
   }).join('');
