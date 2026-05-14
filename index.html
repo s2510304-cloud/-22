@@ -178,6 +178,9 @@ button{cursor:pointer;}
 @keyframes splash-glow{0%,100%{box-shadow:0 0 20px rgba(108,99,255,.4);}50%{box-shadow:0 0 50px rgba(108,99,255,.8),0 0 80px rgba(108,99,255,.3);}}
 @keyframes splash-in{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
 #splash-ver{font-size:10px;color:rgba(255,255,255,.2);margin-top:24px;letter-spacing:2px;animation:splash-in .6s ease .5s both;}
+#splash-layout{position:relative;display:flex;align-items:center;gap:60px;max-width:900px;padding:0 32px;}
+#globe-canvas{width:260px;height:260px;flex-shrink:0;animation:splash-in .8s ease both;filter:drop-shadow(0 0 40px rgba(108,99,255,.5));}
+@media(max-width:680px){#splash-layout{flex-direction:column;gap:24px;}#globe-canvas{width:180px;height:180px;}}
 /* SELECT */
 #sel{position:fixed;inset:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:22px;}
 #sel h1{font-size:36px;font-weight:800;color:var(--ac);margin-bottom:4px;}
@@ -386,19 +389,22 @@ button{cursor:pointer;}
     <div class="sorb sorb2"></div>
     <div class="sorb sorb3"></div>
   </div>
-  <div id="splash-inner">
-    <div id="splash-label">국가 경영 시뮬레이션</div>
-    <div id="splash-title">Eco<span>Nation</span></div>
-    <div id="splash-sub">대통령이 되어 경제를 성장시키고<br>국민의 지지를 얻어 나라를 번영으로 이끄세요</div>
-    <div id="splash-feats">
-      <span>🏛️ 정책 입안</span>
-      <span>📈 경제 성장</span>
-      <span>🤝 외교·FTA</span>
-      <span>⚔️ 전쟁·핵무기</span>
-      <span>🔬 기술 개발</span>
+  <div id="splash-layout">
+    <canvas id="globe-canvas"></canvas>
+    <div id="splash-inner">
+      <div id="splash-label">국가 경영 시뮬레이션</div>
+      <div id="splash-title">Eco<span>Nation</span></div>
+      <div id="splash-sub">대통령이 되어 경제를 성장시키고<br>국민의 지지를 얻어 나라를 번영으로 이끄세요</div>
+      <div id="splash-feats">
+        <span>🏛️ 정책 입안</span>
+        <span>📈 경제 성장</span>
+        <span>🤝 외교·FTA</span>
+        <span>⚔️ 전쟁·핵무기</span>
+        <span>🔬 기술 개발</span>
+      </div>
+      <button id="splash-btn" onclick="enterSel()">게임 시작 →</button>
+      <div id="splash-ver">v1.0 · EcoNation</div>
     </div>
-    <button id="splash-btn" onclick="enterSel()">게임 시작 →</button>
-    <div id="splash-ver">v1.0 · EcoNation</div>
   </div>
 </div>
 
@@ -3138,6 +3144,94 @@ function startGame(cid){
   showTutorial();
 }
 buildSel();
+
+// ── 지구 애니메이션 ──────────────────────────────────────
+(function initGlobe(){
+  const cv=document.getElementById('globe-canvas');
+  const S=280; cv.width=cv.height=S;
+  const ctx=cv.getContext('2d');
+  const cx=S/2,cy=S/2,R=110;
+  let rot=0;
+
+  // 대륙 점들 (위도·경도 라디안) — 단순화된 윤곽
+  const landDots=[];
+  // 북미
+  [[40,240],[45,250],[50,240],[55,245],[60,240],[50,260],[42,265],[35,260],[30,255]].forEach(([la,lo])=>landDots.push([la*Math.PI/180,lo*Math.PI/180]));
+  // 유럽
+  [[50,0],[55,10],[48,5],[45,15],[52,20],[56,25],[60,15],[58,5]].forEach(([la,lo])=>landDots.push([la*Math.PI/180,lo*Math.PI/180]));
+  // 아시아
+  [[35,100],[40,110],[45,120],[30,120],[25,110],[50,80],[55,70],[60,90],[35,80]].forEach(([la,lo])=>landDots.push([la*Math.PI/180,lo*Math.PI/180]));
+  // 아프리카
+  [[10,20],[0,30],[-10,25],[15,15],[20,10],[-20,20],[-30,25]].forEach(([la,lo])=>landDots.push([la*Math.PI/180,lo*Math.PI/180]));
+  // 남미
+  [[-10,300],[-20,305],[-30,310],[0,295],[10,285],[5,300]].forEach(([la,lo])=>landDots.push([la*Math.PI/180,lo*Math.PI/180]));
+
+  function project(lat,lon,r){
+    const x=cx+r*Math.cos(lat)*Math.sin(lon+rot);
+    const y=cy-r*Math.sin(lat);
+    const z=Math.cos(lat)*Math.cos(lon+rot); // 앞면 여부
+    return{x,y,z};
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,S,S);
+
+    // 대기 글로우
+    const atmo=ctx.createRadialGradient(cx,cy,R*.85,cx,cy,R*1.35);
+    atmo.addColorStop(0,'rgba(108,99,255,.18)');
+    atmo.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=atmo; ctx.beginPath(); ctx.arc(cx,cy,R*1.35,0,Math.PI*2); ctx.fill();
+
+    // 구 배경
+    const bg=ctx.createRadialGradient(cx-R*.35,cy-R*.3,0,cx,cy,R);
+    bg.addColorStop(0,'#1c1b3a'); bg.addColorStop(.6,'#0e0d22'); bg.addColorStop(1,'#05050f');
+    ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fill();
+
+    // 클리핑
+    ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.clip();
+
+    // 위도선
+    ctx.lineWidth=.6;
+    for(let la=-60;la<=60;la+=30){
+      const latR=la*Math.PI/180;
+      const ry=Math.cos(latR)*R;
+      const py=cy+Math.sin(latR)*R;
+      ctx.strokeStyle=`rgba(108,99,255,${la===0?.35:.18})`;
+      ctx.beginPath(); ctx.ellipse(cx,py,ry,ry*.18,0,0,Math.PI*2); ctx.stroke();
+    }
+    // 경도선
+    for(let lo=0;lo<180;lo+=30){
+      const a=(lo*Math.PI/180)+rot;
+      const rx=Math.abs(Math.cos(a))*R;
+      ctx.strokeStyle=`rgba(108,99,255,.18)`;
+      ctx.beginPath(); ctx.ellipse(cx,cy,rx,R,0,0,Math.PI*2); ctx.stroke();
+    }
+
+    // 대륙 점
+    landDots.forEach(([lat,lon])=>{
+      const p=project(lat,lon,R*.97);
+      if(p.z<0)return; // 뒷면 숨김
+      const bright=.3+p.z*.7;
+      ctx.fillStyle=`rgba(0,230,118,${bright*.8})`;
+      ctx.beginPath(); ctx.arc(p.x,p.y,2.5,0,Math.PI*2); ctx.fill();
+    });
+
+    ctx.restore();
+
+    // 하이라이트
+    const hl=ctx.createRadialGradient(cx-R*.38,cy-R*.32,0,cx,cy,R);
+    hl.addColorStop(0,'rgba(255,255,255,.13)'); hl.addColorStop(.5,'rgba(255,255,255,.03)'); hl.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=hl; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fill();
+
+    // 테두리
+    ctx.strokeStyle='rgba(108,99,255,.35)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
+
+    rot+=0.004;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
 </script>
 </body>
 </html>
