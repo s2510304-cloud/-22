@@ -567,7 +567,7 @@ button{cursor:pointer;}
     <div id="app-hud"><span class="lb">시민 지지율</span><span id="app-v">65%</span><div id="app-b"><div id="app-f" style="width:65%;background:var(--gr)"></div></div></div>
     <div id="qb">Q1 Y1 / 40분기</div>
     <button id="btn-theme" onclick="toggleTheme()" style="background:transparent;border:1px solid var(--bd);border-radius:20px;padding:4px 10px;font-size:13px;color:var(--mu)">🌙</button>
-    <button id="btn-nxt" onclick="nextQ()">▶ 다음 분기</button>
+    <button id="btn-nxt" onclick="MP.enabled ? mpReadyNextQ() : nextQ()">▶ 다음 분기</button>
   </div>
 </div>
 
@@ -2989,6 +2989,7 @@ function renderAll(){
   renderPendingProposals(); renderDCards(); renderRLog(); renderDLog(); renderRelOver();
   renderClimate('climate-dash'); renderClimate('climate-pnl');
   renderDisBox(); renderElecBox(); renderSpy();
+  if (MP.enabled) updateNextQBtn();
 }
 
 function renderHUD(){
@@ -3706,6 +3707,8 @@ const MP = {
   _myCountryId: null,
   _gameStateRef: null,
   _gameStateListener: null,
+  _myReady: false,
+  _readyRef: null,
 };
 
 // 6자리 방 코드 생성
@@ -3757,11 +3760,16 @@ function hideLobby() {
     MP._gameStateRef = null;
     MP._gameStateListener = null;
   }
+  if (MP._readyRef) {
+    MP._readyRef.off('value');
+    MP._readyRef = null;
+  }
   MP.enabled = false;
   MP.roomCode = null;
   MP.uid = null;
   MP.isHost = false;
   MP._myCountryId = null;
+  MP._myReady = false;
 }
 
 // 방 만들기
@@ -4040,6 +4048,8 @@ function listenRoomStatus() {
             startGame(cid);
             mpInitGameState(playerCountries);
             mpListenGameState();
+            MP._myReady = false;
+            listenReady();
           });
         } else {
           // 클라이언트: 플레이어 목록에서 내 국가 확인 후 게임 시작 → 상태 감지 시작
@@ -4053,6 +4063,8 @@ function listenRoomStatus() {
             // 클라이언트는 플레이어 마킹만 로컬 반영 후 Firebase 상태 구독
             mpMarkPlayerCountries(playerCountries);
             mpListenGameState();
+            MP._myReady = false;
+            listenReady();
           });
         }
       }
@@ -4118,9 +4130,16 @@ function mpListenGameState() {
     MP._gameStateRef.off('value', MP._gameStateListener);
   }
   MP._gameStateRef = db.ref('rooms/' + MP.roomCode + '/gameState');
+  let _lastTurn = -1;
   MP._gameStateListener = MP._gameStateRef.on('value', snap => {
     const state = snap.val();
     if (!state) return;
+    // 클라이언트: 분기가 바뀌면 준비 상태 리셋
+    if (!MP.isHost && state.turn !== undefined && state.turn !== _lastTurn && _lastTurn !== -1) {
+      MP._myReady = false;
+      updateNextQBtn();
+    }
+    _lastTurn = state.turn;
     mpApplyGameState(state);
     renderAll();
   });
@@ -4142,6 +4161,105 @@ function mpApplyGameState(state) {
   if (state.evLog) G.evLog = state.evLog;
   if (state.diploLog) G.diploLog = state.diploLog;
   if (state.turn !== undefined) G.turn = state.turn;
+}
+
+// ── 다음 분기 동기화 ──────────────────────────────────────────
+
+// "다음 분기" 버튼 클릭: 멀티플레이에서 준비 상태 토글
+function mpReadyNextQ() {
+  if (!MP.enabled) { nextQ(); return; }
+  const myReady = MP._myReady;
+  MP._myReady = !myReady;
+  db.ref('rooms/' + MP.roomCode + '/ready/' + MP.uid).set(!myReady).catch(err => {
+    console.warn('ready 상태 저장 실패:', err);
+    MP._myReady = myReady; // 실패 시 롤백
+  });
+  updateNextQBtn();
+}
+
+// "다음 분기" 버튼 텍스트/색상 업데이트
+function updateNextQBtn() {
+  const btn = document.getElementById('btn-nxt');
+  if (!btn) return;
+  if (!MP.enabled) {
+    btn.textContent = '▶ 다음 분기';
+    btn.style.background = '';
+    return;
+  }
+  if (MP._myReady) {
+    btn.textContent = '✅ 준비 완료';
+    btn.style.background = 'var(--gr)';
+    btn.style.color = '#000';
+  } else {
+    btn.textContent = '⏭ 다음 분기';
+    btn.style.background = '';
+    btn.style.color = '';
+  }
+}
+
+// 준비 현황 표시 엘리먼트 업데이트
+function updateReadyStatus(readyCount, totalCount, readyMap, players) {
+  let statusEl = document.getElementById('mpReadyStatus');
+  if (!statusEl) {
+    statusEl = document.createElement('div');
+    statusEl.id = 'mpReadyStatus';
+    statusEl.style.cssText = 'font-size:11px;color:var(--mu);margin-top:4px;text-align:center;line-height:1.5;';
+    const btn = document.getElementById('btn-nxt');
+    if (btn && btn.parentNode) btn.parentNode.insertBefore(statusEl, btn.nextSibling);
+  }
+  if (!MP.enabled) { statusEl.style.display = 'none'; return; }
+  const lines = Object.entries(players)
+    .filter(([uid, p]) => p.connected !== false)
+    .map(([uid, p]) => `${readyMap[uid] ? '✅' : '⏳'} ${p.name}`);
+  statusEl.innerHTML = `준비: ${readyCount}/${totalCount}<br>${lines.join(' · ')}`;
+  statusEl.style.display = 'block';
+}
+
+// ready 상태 Firebase 리스너 (게임 시작 후 호출)
+function listenReady() {
+  if (!db || !MP.roomCode) return;
+  if (MP._readyRef) {
+    MP._readyRef.off('value');
+  }
+  MP._readyRef = db.ref('rooms/' + MP.roomCode + '/ready');
+  MP._readyRef.on('value', snap => {
+    const readyMap = snap.val() || {};
+    // Firebase에서 내 ready 상태와 로컬 상태 동기화 (호스트가 초기화했을 때 리셋)
+    const serverReady = !!readyMap[MP.uid];
+    if (MP._myReady !== serverReady) {
+      MP._myReady = serverReady;
+      updateNextQBtn();
+    }
+    db.ref('rooms/' + MP.roomCode + '/players').once('value').then(ps => {
+      const players = ps.val() || {};
+      const connected = Object.entries(players).filter(([uid, p]) => p.connected !== false);
+      const totalCount = connected.length;
+      const readyCount = connected.filter(([uid]) => readyMap[uid]).length;
+
+      updateReadyStatus(readyCount, totalCount, readyMap, players);
+
+      // 모두 준비됐으면 분기 진행 (호스트만)
+      if (MP.isHost && totalCount >= 2 && readyCount >= totalCount) {
+        mpAdvanceTurn();
+      }
+    });
+  });
+}
+
+// 호스트만 실행: ready 초기화 → nextQ() → mpPushGameState()
+async function mpAdvanceTurn() {
+  if (!MP.isHost || !db) return;
+  // 1. ready 초기화
+  await db.ref('rooms/' + MP.roomCode + '/ready').set({});
+  // 2. 모든 플레이어 _myReady 리셋은 각자 리스너에서 처리; 호스트 자신도 리셋
+  MP._myReady = false;
+  updateNextQBtn();
+  // 3. nextQ() 실행 (기존 분기 진행 로직)
+  nextQ();
+  // 4. 변경된 게임 상태를 Firebase에 push (nextQ() 내부에서 gameOver 체크 포함)
+  if (!G.gameOver) {
+    mpPushGameState();
+  }
 }
 
 // ── 지구 애니메이션 ──────────────────────────────────────
