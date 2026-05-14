@@ -571,6 +571,7 @@ button{cursor:pointer;}
     <div id="app-hud"><span class="lb">시민 지지율</span><span id="app-v">65%</span><div id="app-b"><div id="app-f" style="width:65%;background:var(--gr)"></div></div></div>
     <div id="qb">Q1 Y1 / 40분기</div>
     <button id="btn-theme" onclick="toggleTheme()" style="background:transparent;border:1px solid var(--bd);border-radius:20px;padding:4px 10px;font-size:13px;color:var(--mu)">🌙</button>
+    <button onclick="openBugReport()" style="background:transparent;border:1px solid var(--re);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--re)">🐛 버그신고</button>
     <button id="btn-nxt" onclick="MP.enabled ? mpReadyNextQ() : nextQ()">▶ 다음 분기</button>
   </div>
 </div>
@@ -829,6 +830,19 @@ button{cursor:pointer;}
 <button id="mpChatBtn" onclick="toggleChat()" style="display:none;position:fixed;bottom:20px;right:20px;background:#4af;color:#000;border:none;border-radius:50%;width:44px;height:44px;font-size:20px;cursor:pointer;z-index:9998;">💬</button>
 
 <div id="toast"></div>
+
+<!-- 버그 신고 모달 -->
+<div id="bugModal" style="display:none;position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.75);align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--re);border-radius:14px;padding:24px;width:360px;max-width:94vw;">
+    <h3 style="color:var(--re);margin-bottom:4px;">🐛 버그 신고</h3>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:14px;">발견한 버그나 오류를 적어주세요. 익명으로 전송됩니다.</p>
+    <textarea id="bugText" rows="5" placeholder="어떤 상황에서 버그가 발생했나요?" style="width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:8px;color:var(--tx);font-size:13px;padding:10px;resize:vertical;outline:none;"></textarea>
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
+      <button onclick="closeBugReport()" style="background:transparent;border:1px solid var(--bd);border-radius:8px;padding:7px 16px;color:var(--mu);font-size:12px;">취소</button>
+      <button onclick="submitBugReport()" style="background:var(--re);border:none;border-radius:8px;padding:7px 18px;color:#fff;font-size:12px;font-weight:700;">전송</button>
+    </div>
+  </div>
+</div>
 <div id="modal"><div class="mbox"><h2 id="mt"></h2><div class="md" id="md"></div><div class="ms" id="ms"></div><div class="mr" id="mr"></div><div class="mc" id="mc"></div><button id="mrst" onclick="restartToSelect()">다시 시작</button></div></div>
 
 <script>
@@ -3868,6 +3882,35 @@ function restartToSelect() {
   document.getElementById('sel-step-mode').style.display = 'block';
   document.getElementById('sel-step-country').style.display = 'none';
   buildSel();
+}
+
+// 버그 신고
+function openBugReport() {
+  document.getElementById('bugText').value = '';
+  document.getElementById('bugModal').style.display = 'flex';
+}
+function closeBugReport() {
+  document.getElementById('bugModal').style.display = 'none';
+}
+function submitBugReport() {
+  const text = document.getElementById('bugText').value.trim();
+  if (!text) { toast('내용을 입력해주세요', 'bad'); return; }
+  const report = {
+    text: text,
+    ts: Date.now(),
+    turn: (typeof G !== 'undefined' && G.turn) ? G.turn : 0,
+    country: (typeof G !== 'undefined' && typeof P === 'function') ? (P().id || '') : '',
+    mode: (typeof _selMode !== 'undefined') ? _selMode : '',
+    mp: MP.enabled,
+    ua: navigator.userAgent.slice(0, 80),
+  };
+  if (db) {
+    db.ref('bugReports').push(report)
+      .then(() => { toast('✅ 버그 신고 전송 완료! 감사합니다.', 'good'); closeBugReport(); })
+      .catch(() => { toast('전송 실패. 인터넷 연결을 확인하세요.', 'bad'); });
+  } else {
+    toast('Firebase 미연결 — 신고를 전송할 수 없습니다.', 'bad');
+  }
 }
 
 // 방 코드 복사
