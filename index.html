@@ -1665,6 +1665,13 @@ function applyWarEffects(){
       p.bud+=300; G.approval=Math.min(100,G.approval+15);
       toast(`🎖 ${c.flag} ${c.name}에 승리! 배상금 수령.`,'good');
       showWarVictory(c);
+      // 멀티플레이: 전쟁 승리 후 상대 국가 stats 및 내 stats 동기화
+      if(MP.enabled){
+        mpUpdateCountryStat(c.id,{relation:c.relation,mood:c.mood,tariff:c.tariff,warTurns:0});
+        if(c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid)
+          mpNotifyPlayer(c.playerUid,`🏳️ ${P().flag}${P().name}에 항복했습니다. 전쟁이 종료되었습니다.`);
+        mpPushEvLog();mpPushDiploLog();mpSyncMyStats();
+      }
     }
     // 패전 조건: 지지율 급락 또는 GDP 역전
     if(G.approval<20||(c.warTurns>=4&&p.gdp<c.gdp*0.5)){
@@ -1674,6 +1681,13 @@ function applyWarEffects(){
       p.bud-=400; G.approval=Math.max(0,G.approval-20);
       toast(`💔 ${c.flag} ${c.name}에 패배...`,'bad');
       showWarDefeat(c);
+      // 멀티플레이: 전쟁 패배 후 상대 국가 stats 및 내 stats 동기화
+      if(MP.enabled){
+        mpUpdateCountryStat(c.id,{relation:c.relation,mood:c.mood,tariff:c.tariff,warTurns:0});
+        if(c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid)
+          mpNotifyPlayer(c.playerUid,`🎖 ${P().flag}${P().name}이 항복했습니다. 전쟁이 종료되었습니다.`);
+        mpPushEvLog();mpPushDiploLog();mpSyncMyStats();
+      }
     }
   });
 }
@@ -1699,6 +1713,13 @@ function checkEscalation(){
         logDiplo(`⚔️ ${c.flag} ${c.name}이 군사전쟁 선포!`,'bad');
         G.evLog.unshift({text:`🚨 ${c.flag} ${c.name}이 선전포고! 전쟁 발발!`,type:'bad',turn:G.turn});
         G.approval=Math.max(0,G.approval-10);
+        // 멀티플레이: AI 전쟁 선포 시 해당 국가 stats 동기화
+        if(MP.enabled){
+          mpUpdateCountryStat(c.id,{relation:c.relation,mood:c.mood,warTurns:c.warTurns,tariffWarTurns:c.tariffWarTurns});
+          if(c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid)
+            mpNotifyPlayer(c.playerUid,`⚔️ ${c.flag}${c.name}이 당신에게 군사전쟁을 선포했습니다!`);
+          mpPushEvLog();
+        }
         // 제3국 반응 및 연합 참전
         AI().filter(x=>x.id!==c.id&&x.relation!=='military_war').forEach(x=>{
           if(Math.random()<0.4){x.mood-=15;addReaction(x,'sanction');}
@@ -1708,6 +1729,12 @@ function checkEscalation(){
             logDiplo(`⚔️ ${x.flag}${x.name} 참전! ${c.flag}${c.name}과 연합!`,'bad');
             G.evLog.unshift({text:`🚨 ${x.flag}${x.name} 참전! 적 연합군 확대!`,type:'bad',turn:G.turn});
             toast(`⚠️ ${x.flag}${x.name} 참전!`,'bad');
+            // 멀티플레이: 연합 편승 참전 동기화
+            if(MP.enabled){
+              mpUpdateCountryStat(x.id,{relation:x.relation,mood:x.mood,warTurns:x.warTurns});
+              if(x.isPlayer&&x.playerUid&&x.playerUid!==MP.uid)
+                mpNotifyPlayer(x.playerUid,`⚔️ ${x.flag}${x.name}이 ${c.flag}${c.name}과 연합하여 참전했습니다!`);
+            }
           }
         });
         showEnemyWarDeclaration(c, ()=>{ renderAll(); });
@@ -1754,6 +1781,8 @@ function nextQ(){
 
   applyWarEffects();
   checkEscalation();
+  // 멀티플레이: 호스트는 전쟁 처리 결과를 evLog에 즉시 반영 (mpPushGameState()로 전체 동기화 전 선행)
+  if(MP.enabled&&MP.isHost) mpPushEvLog();
 
   const p=P();
   p.gro=Math.max(-5,Math.min(20,p.gro));
@@ -2127,6 +2156,12 @@ function checkCoalition(mainWarId){
       G.evLog.unshift({text:`🚨 ${x.flag}${x.name} 참전! 적 연합군 형성!`,type:'bad',turn:G.turn});
       addReaction(x,'ai_attacks',`${mainEnemy.name}과 연대하여 참전합니다!`);
       toast(`⚠️ ${x.flag}${x.name} 적 편에 참전!`,'bad');
+      // 멀티플레이: 연합 참전 국가 stats 동기화
+      if(MP.enabled){
+        mpUpdateCountryStat(x.id,{relation:x.relation,mood:x.mood,warTurns:x.warTurns});
+        if(x.isPlayer&&x.playerUid&&x.playerUid!==MP.uid)
+          mpNotifyPlayer(x.playerUid,`⚔️ ${mainEnemy.flag}${mainEnemy.name}과 연대하여 ${P().flag}${P().name}에 참전했습니다!`);
+      }
     }
   });
   // 동맹국 지지 선언
@@ -2135,6 +2170,8 @@ function checkCoalition(mainWarId){
     allies.forEach(x=>{logDiplo(`🛡 ${x.flag}${x.name} 우리 편으로 참전 지지!`,'good');});
     toast(`🛡 동맹 ${allies.length}개국 참전 지지!`,'good');
   }
+  // 멀티플레이: 연합 참전 처리 후 evLog 동기화
+  if(MP.enabled) mpPushEvLog();
 }
 function declareMilWar(cid){
   const c=C(cid);
@@ -3282,10 +3319,13 @@ function renderDCards(){
     const moodPct=Math.max(0,(c.mood+100)/2);
     const ccl={neutral:'',deal:'deal-active',alliance:'alliance-active',tension:'',tariff_war:'tariff-active',military_war:'war-active'}[c.relation]||'';
     const canAlliance=c.relation==='deal'&&c.mood>40;
+    const isOtherPlayer=MP.enabled&&c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid;
+    const playerBadge=isOtherPlayer?`<span style="background:#4af;color:#000;border-radius:3px;padding:1px 5px;font-size:10px;margin-left:4px;font-weight:700">👤 플레이어</span>`:'';
+    const warBadge=(isOtherPlayer&&c.relation==='military_war')?`<span style="background:rgba(255,68,68,.85);color:#fff;border-radius:3px;padding:1px 5px;font-size:10px;margin-left:4px;font-weight:700">⚔️ 교전 중</span>`:'';
     return `<div class="cc ${ccl}">
       <div class="cct">
         <div class="cf">${c.flag}</div>
-        <div class="cin"><div class="cn">${c.name}</div><div class="cg">GDP: ${fG(c.gdp)} · 군사력: ${c.mil} · 관세: ${c.tariff}%</div></div>
+        <div class="cin"><div class="cn">${c.name}${playerBadge}${warBadge}</div><div class="cg">GDP: ${fG(c.gdp)} · 군사력: ${c.mil} · 관세: ${c.tariff}%</div></div>
         <div class="cs ${sl[c.relation]||'sn'}">${rl[c.relation]||'중립'}</div>
       </div>
       <div style="font-size:10px;color:var(--mu);display:flex;justify-content:space-between;margin-bottom:3px">
