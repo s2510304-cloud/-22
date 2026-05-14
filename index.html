@@ -1723,6 +1723,7 @@ function buyGood(cid,gid){
 function sellGood(gid,qty){
   qty=qty||parseInt(document.getElementById('sq-'+gid)?.value)||1;
   if((G.inv[gid]||0)<qty){toast('재고 부족','bad');return;}
+  if((G.tradeBought[gid]||0)>0){toast('⏳ 이번 분기에 수입한 자원은 다음 분기에 판매 가능합니다','bad');return;}
   const c=C(G.activeTC);
   if(!c||c.relation==='military_war'){toast('🚫 수출 불가 — 대상 국가를 확인하세요','bad');return;}
   if((G.tradeSold[gid]||0)>=TRADE_LIMIT){toast(`⏳ ${GOODS.find(x=>x.id===gid).name} 이번 분기 수출 한도 초과 (${TRADE_LIMIT}회)`,'bad');return;}
@@ -2939,7 +2940,7 @@ function renderTradeTable(){
       <td><input class="ti" type="number" min="1" value="1" id="qty-${g.id}" style="width:44px"></td>
       <td><div style="display:flex;gap:3px;justify-content:flex-end;align-items:center;flex-wrap:wrap;">
         <button class="bb" onclick="buyGood('${c.id}','${g.id}')" ${(G.tradeBought[g.id]||0)>=TRADE_LIMIT?'disabled style="opacity:.4;cursor:not-allowed"':''}>수입${(G.tradeBought[g.id]||0)>0?` (${G.tradeBought[g.id]}/${TRADE_LIMIT})`:''}</button>
-        ${inv>0?`<input class="ti" type="number" min="1" max="${inv}" value="1" id="sq-${g.id}" style="width:38px"><button class="bs" onclick="sellGood('${g.id}')" ${(G.tradeSold[g.id]||0)>=TRADE_LIMIT?'disabled style="opacity:.4;cursor:not-allowed"':''}>수출$${Math.round(c.prices[g.id]*0.92).toLocaleString()}(${inv})</button>`:''}
+        ${inv>0?`<input class="ti" type="number" min="1" max="${inv}" value="1" id="sq-${g.id}" style="width:38px"><button class="bs" onclick="sellGood('${g.id}')" ${((G.tradeSold[g.id]||0)>=TRADE_LIMIT||(G.tradeBought[g.id]||0)>0)?'disabled style="opacity:.4;cursor:not-allowed"':''}>수출$${Math.round(c.prices[g.id]*0.92).toLocaleString()}(${inv})${(G.tradeBought[g.id]||0)>0?' 🔒':''}</button>`:''}
       </div></td>
     </tr>`;
   }).join('');
