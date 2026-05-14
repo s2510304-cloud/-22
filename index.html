@@ -3882,6 +3882,29 @@ function copyRoomCode() {
   }
 }
 
+// 멀티플레이 전역 상태 (buildSel()보다 먼저 선언 필수)
+let _mpAdvancingTurn = false;
+const MP = {
+  enabled: false,
+  roomCode: null,
+  uid: null,
+  isHost: false,
+  slot: 0,
+  playerName: null,
+  _playersRef: null,
+  _playersListener: null,
+  _countryRef: null,
+  _countryListener: null,
+  _statusRef: null,
+  _myCountryId: null,
+  _gameStateRef: null,
+  _gameStateListener: null,
+  _myReady: false,
+  _readyRef: null,
+  _originalHost: null,
+  _listenReadyActive: false,
+};
+
 buildSel();
 renderSplashRanks();
 
@@ -3917,28 +3940,7 @@ try {
   console.warn('Firebase 초기화 실패:', e);
 }
 
-// 멀티플레이 전역 상태
-let _mpAdvancingTurn = false; // mpAdvanceTurn() 레이스 컨디션 방지
-const MP = {
-  enabled: false,
-  roomCode: null,
-  uid: null,
-  isHost: false,
-  slot: 0,
-  playerName: null,
-  _playersRef: null,
-  _playersListener: null,
-  _countryRef: null,
-  _countryListener: null,
-  _statusRef: null,
-  _myCountryId: null,
-  _gameStateRef: null,
-  _gameStateListener: null,
-  _myReady: false,
-  _readyRef: null,
-  _originalHost: null,   // 최초 호스트 UID (호스트 이전 추적용)
-  _listenReadyActive: false, // listenReady 중복 방지
-};
+// MP 및 _mpAdvancingTurn은 buildSel() 이전으로 이동됨 (위 참조)
 
 // 6자리 방 코드 생성
 function genRoomCode() {
