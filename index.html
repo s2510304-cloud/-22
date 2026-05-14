@@ -1633,7 +1633,7 @@ function buyGood(cid,gid){
   const qty=parseInt(document.getElementById('qty-'+gid)?.value)||1;
   const c=C(cid),g=GOODS.find(x=>x.id===gid),p=P();
   if(c.relation==='military_war'){toast('🚫 무역 금지 — 교전국과는 거래 불가','bad');return;}
-  if((G.tradeBought[gid]||0)>=TRADE_LIMIT){toast(`⏳ ${g.name} 이번 분기 수입 한도 초과 (${TRADE_LIMIT}회)','bad');return;}
+  if((G.tradeBought[gid]||0)>=TRADE_LIMIT){toast(`⏳ ${g.name} 이번 분기 수입 한도 초과 (${TRADE_LIMIT}회)`,'bad');return;}
   const envM=G.envMult?.[gid]||1;
   const cost=Math.round(c.prices[gid]*(1+(c.tariff||0)/100)*(G.warPremium||1)*envM)*qty;
   if(cost>p.bud){toast('예산 부족','bad');return;}
@@ -3128,11 +3128,21 @@ function endTutorial(){
   document.getElementById('tut-overlay').classList.remove('active');
 }
 
+function toggleTheme(){
+  document.body.classList.toggle('light');
+  document.getElementById('btn-theme').textContent=document.body.classList.contains('light')?'🌙':'☀️';
+}
 function enterSel(){
   const sp=document.getElementById('splash');
   sp.style.transition='opacity .4s';
   sp.style.opacity='0';
-  setTimeout(()=>{sp.style.display='none';document.getElementById('sel').style.display='flex';},400);
+  setTimeout(()=>{
+    sp.style.display='none';
+    const sel=document.getElementById('sel');
+    sel.style.display='flex';
+    document.getElementById('sel-step-mode').style.display='block';
+    document.getElementById('sel-step-country').style.display='none';
+  },400);
 }
 function startGame(cid){
   initGame(cid,_selMode);
