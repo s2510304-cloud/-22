@@ -876,13 +876,13 @@ const MAPS={
 //  SPY & CLIMATE DATA
 // ══════════════════════════════════════════════════════
 const SPY_OPS=[
-  {id:'intel',    icon:'🔍',name:'경제 정보 수집',  desc:'대상국 경제 취약점 파악. 성장률 소폭 상승.',     cost:30, agent:0, risk:0.05, target:false},
-  {id:'steal',    icon:'💾',name:'기술 탈취',       desc:'첨단 기술 절취 → 3분기간 GDP 성장률 +0.4%.',  cost:80, agent:1, risk:0.30, target:false},
-  {id:'sabotage', icon:'💣',name:'경제 방해공작',   desc:'대상국 산업 시설 피해 → 대상국 성장 -1.5%.',  cost:60, agent:1, risk:0.25, target:true},
-  {id:'manipulate',icon:'🎭',name:'외교 공작',      desc:'대상국과의 감정 개선 +30. 관계 회복에 유리.',  cost:40, agent:0, risk:0.10, target:true},
-  {id:'counter',  icon:'🛡',name:'방첩망 강화',     desc:'적국 스파이 차단 능력 강화. CI +25.',          cost:50, agent:0, risk:0.00, target:false},
-  {id:'coup',      icon:'👑',name:'정치 공작',  desc:'대상국 내부 혼란 유발. 고위험·고수익.',                   cost:150,agent:1, risk:0.50, target:true},
-  {id:'assassinate',icon:'🗡️',name:'고위직 암살',desc:'대상국 핵심 인물 제거. 극고위험 — 실패 시 즉각 전쟁.',  cost:300,agent:1, risk:0.65, target:true},
+  {id:'intel',    icon:'🔍',name:'경제 정보 수집',  desc:'대상국 경제 취약점 파악. 성장률 +1.5%.',          cost:40,  agent:0, risk:0.05, target:false},
+  {id:'steal',    icon:'💾',name:'기술 탈취',       desc:'첨단 기술 절취 → 5분기간 성장률 +2.0%.',          cost:100, agent:1, risk:0.30, target:false},
+  {id:'sabotage', icon:'💣',name:'경제 방해공작',   desc:'대상국 산업 피해 → 성장 -4%, 재정 -300억.',       cost:80,  agent:1, risk:0.25, target:true},
+  {id:'manipulate',icon:'🎭',name:'외교 공작',      desc:'대상국 감정 개선 +60. 관계 회복에 유리.',          cost:60,  agent:0, risk:0.10, target:true},
+  {id:'counter',  icon:'🛡',name:'방첩망 강화',     desc:'적국 스파이 차단 능력 강화. 방첩 +45.',            cost:70,  agent:0, risk:0.00, target:false},
+  {id:'coup',     icon:'👑',name:'정치 공작',       desc:'대상국 내부 혼란 유발. 성장 -6%, 재정 -500억.',   cost:200, agent:1, risk:0.50, target:true},
+  {id:'assassinate',icon:'🗡️',name:'고위직 암살', desc:'대상국 핵심 인물 제거. 극고위험 — 실패 시 전쟁.',  cost:400, agent:1, risk:0.65, target:true},
 ];
 const LEADERS={
   KOR:[
@@ -1765,7 +1765,7 @@ function nextQ(){
   doTerror();
   doCivilWar(); if(G.gameOver)return;
   updateMarket();
-  if(G.spyBoost>0){G.spyBoost--;P().gro+=.4;}
+  if(G.spyBoost>0){G.spyBoost--;P().gro+=2.0;}
   aiSpyAttack();
   aiActiveActions();
   recalcApproval();
@@ -2361,22 +2361,22 @@ function spyOp(opId){
     renderAll();return;
   }
   let msg='성공';
-  if(opId==='intel'){p.gro+=.3;msg='경제 취약점 파악. 성장률 +0.3%.';}
-  else if(opId==='steal'){G.spyBoost=3;p.gro+=.4;msg='기술 탈취 성공! 3분기간 성장률 +0.4%.';}
-  else if(opId==='sabotage'&&c){c.gro-=1.5;c.bud-=80;msg=`${c.flag}${c.name} 산업 시설 피해.`;}
-  else if(opId==='manipulate'&&c){c.mood=Math.min(100,c.mood+30);msg=`${c.flag}${c.name} 감정 +30.`;}
-  else if(opId==='counter'){G.spyCI=Math.min(100,G.spyCI+25);msg='방첩망 강화 완료.';}
-  else if(opId==='coup'&&c){c.gro-=3;c.bud-=200;c.mood-=40;c.unemp+=2;msg=`${c.flag}${c.name} 내부 혼란 유발!`;}
+  if(opId==='intel'){p.gro+=1.5;msg='경제 취약점 파악. 성장률 +1.5%.';}
+  else if(opId==='steal'){G.spyBoost=5;p.gro+=2.0;msg='기술 탈취 성공! 5분기간 성장률 +2.0%.';}
+  else if(opId==='sabotage'&&c){c.gro-=4;c.bud-=300;msg=`${c.flag}${c.name} 산업 시설 피해. 성장 -4%, 재정 -300억.`;}
+  else if(opId==='manipulate'&&c){c.mood=Math.min(100,c.mood+60);msg=`${c.flag}${c.name} 감정 +60.`;}
+  else if(opId==='counter'){G.spyCI=Math.min(100,G.spyCI+45);msg='방첩망 강화 완료. 방첩 +45.';}
+  else if(opId==='coup'&&c){c.gro-=6;c.bud-=500;c.mood-=60;c.unemp+=4;msg=`${c.flag}${c.name} 내부 혼란 유발!`;}
   else if(opId==='assassinate'&&c){
     const leaders=LEADERS[c.id]||[];
     const victim=leaders.length?leaders[Math.floor(Math.random()*leaders.length)]:{title:'고위 인사',name:'미상',impact:'pol'};
     const vTitle=victim.title; const vName=victim.name;
-    c.gro-=2.5; c.bud-=200; c.mil-=8; c.mood=-80;
+    c.gro-=4.0; c.bud-=400; c.mil-=15; c.mood=-80;
     G.approval=Math.max(0,G.approval-10);
-    if(victim.impact==='eco'){c.gro-=1.5;c.bud-=150;}
-    else if(victim.impact==='mil'){c.mil-=15;}
-    else if(victim.impact==='pol'){c.gro-=1;c.bud-=100;}
-    else if(victim.impact==='fin'){c.gro-=1;c.bud-=80;}
+    if(victim.impact==='eco'){c.gro-=2.5;c.bud-=300;}
+    else if(victim.impact==='mil'){c.mil-=30;}
+    else if(victim.impact==='pol'){c.gro-=2.0;c.bud-=200;}
+    else if(victim.impact==='fin'){c.gro-=2.0;c.bud-=200;}
     G.countries.filter(x=>x.id!==p.id&&x.id!==c.id).forEach(x=>{x.mood=Math.max(-100,x.mood-20);});
     if(Math.random()<0.65&&c.relation!=='military_war'){
       c.relation='military_war';c.warTurns=0;c.mood=-100;
