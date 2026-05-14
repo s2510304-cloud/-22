@@ -1315,6 +1315,7 @@ function initGame(pid,mode){
     warOrders:{},
     warPremium:1,envMult:{oil:1,wheat:1,agri:1,steel:1,semi:1,car:1,pharma:1,rare:1},
     wg:{member:false,seat:false,resCooldown:0},
+    pid:pid,
     countries:CTPL.map(c=>({
       ...c,
       isPlayer:c.id===pid,
@@ -1330,8 +1331,8 @@ function initGame(pid,mode){
   };
   GOODS.forEach(g=>{G.inv[g.id]=0;G.priceHistory[g.id]=[g.base];});
 }
-const P=()=>G.countries.find(c=>c.isPlayer);
-const AI=()=>G.countries.filter(c=>!c.isPlayer);
+const P=()=>G.countries.find(c=>c.id===G.pid);
+const AI=()=>G.countries.filter(c=>c.id!==G.pid);
 const C=id=>G.countries.find(c=>c.id===id);
 
 // ══════════════════════════════════════════════════════
@@ -4691,7 +4692,7 @@ function mpListenGameState() {
 // Firebase에서 받은 상태를 G에 적용 (개인 데이터는 건드리지 않음)
 function mpApplyGameState(state) {
   if (!state || typeof G === 'undefined') return;
-  const myId = MP.enabled ? (G.countries.find(c => c.playerUid === MP.uid) || {}).id : null;
+  const myId = MP.enabled ? G.pid : null;
   const prevTurn = G.turn;
 
   if (state.countries) {
