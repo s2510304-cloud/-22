@@ -1932,13 +1932,25 @@ function proposeDeal(cid){
   logDiplo(`✅ ${c.flag} ${c.name}과 FTA 체결! 관세 0%`,'good');
   // 라이벌 반응 (미국↔중국 등)
   AI().filter(x=>x.id!==cid&&Math.random()<0.35).forEach(x=>{x.mood-=8;addReaction(x,'sanction','우리도 협력 관계를 재검토하겠습니다.');});
-  toast(`${c.flag} ${c.name}과 FTA 체결!`,'good');renderAll();
+  toast(`${c.flag} ${c.name}과 FTA 체결!`,'good');
+  if(MP.enabled){
+    mpUpdateCountryStat(cid,{relation:c.relation,mood:c.mood,tariff:c.tariff});
+    mpPushDiploLog();
+    if(c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid)mpNotifyPlayer(c.playerUid,`${P().flag}${P().name}이 FTA 체결을 제안했습니다.`);
+  }
+  renderAll();
 }
 function raiseTension(cid){
   const c=C(cid);c.relation='tension';c.tariff=25;c.mood-=20;c.tensionTurns=0;
   addReaction(c,'tariff_war','이런 태도에 강력히 유감을 표명합니다.');
   logDiplo(`⚠️ ${c.flag} ${c.name}과 외교 긴장 — 관세 25%`,'warn');
-  toast(`${c.flag} ${c.name}과 관계 악화`,'bad');renderAll();
+  toast(`${c.flag} ${c.name}과 관계 악화`,'bad');
+  if(MP.enabled){
+    mpUpdateCountryStat(cid,{relation:c.relation,mood:c.mood,tariff:c.tariff});
+    mpPushDiploLog();
+    if(c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid)mpNotifyPlayer(c.playerUid,`${P().flag}${P().name}이 외교 긴장을 조성했습니다.`);
+  }
+  renderAll();
 }
 function declareTariffWar(cid){
   const c=C(cid);c.relation='tariff_war';c.tariff=45;c.mood-=35;c.tariffWarTurns=0;
@@ -1946,7 +1958,13 @@ function declareTariffWar(cid){
   addReaction(c,'tariff_war');
   logDiplo(`💥 ${c.flag} ${c.name}에 관세전쟁 선언! 관세 45%`,'bad');
   AI().filter(x=>x.id!==cid&&Math.random()<0.3).forEach(x=>{x.mood-=10;});
-  toast(`${c.flag} ${c.name}과 관세전쟁!`,'bad');renderAll();
+  toast(`${c.flag} ${c.name}과 관세전쟁!`,'bad');
+  if(MP.enabled){
+    mpUpdateCountryStat(cid,{relation:c.relation,mood:c.mood,tariff:c.tariff});
+    mpPushDiploLog();
+    if(c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid)mpNotifyPlayer(c.playerUid,`${P().flag}${P().name}이 관세전쟁을 선언했습니다! (관세 45%)`);
+  }
+  renderAll();
 }
 function showWarDeclaration(c, onConfirm, onCancel){
   const STEPS=[
@@ -2128,7 +2146,13 @@ function declareMilWar(cid){
     G.approval=Math.max(0,G.approval-10);
     AI().filter(x=>x.id!==cid).forEach(x=>{x.mood-=15;if(Math.random()<0.4)addReaction(x,'sanction');});
     checkCoalition(cid);
-    toast(`⚔️ ${c.flag} ${c.name}에 선전포고!`,'bad');renderAll();
+    toast(`⚔️ ${c.flag} ${c.name}에 선전포고!`,'bad');
+    if(MP.enabled){
+      mpUpdateCountryStat(cid,{relation:c.relation,mood:c.mood,warTurns:c.warTurns});
+      mpPushDiploLog();mpPushEvLog();
+      if(c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid)mpNotifyPlayer(c.playerUid,`⚔️ ${P().flag}${P().name}이 전쟁을 선포했습니다!`);
+    }
+    renderAll();
   });
 }
 function peaceNegotiate(cid){
@@ -2138,13 +2162,25 @@ function peaceNegotiate(cid){
   addReaction(c,'normalize','협상을 받아들입니다. 배상금을 확인했습니다.');
   logDiplo(`🕊 ${c.flag} ${c.name}과 평화 협상 체결 ($500억 지불)`,'info');
   G.approval=Math.min(100,G.approval+8);
-  toast(`🕊 ${c.flag} ${c.name}과 평화 협정!`,'info');renderAll();
+  toast(`🕊 ${c.flag} ${c.name}과 평화 협정!`,'info');
+  if(MP.enabled){
+    mpUpdateCountryStat(cid,{relation:c.relation,mood:c.mood,tariff:c.tariff,warTurns:c.warTurns});
+    mpPushDiploLog();
+    if(c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid)mpNotifyPlayer(c.playerUid,`🕊 ${P().flag}${P().name}이 평화 협상을 제안했습니다. (배상금 500억 지불)`);
+  }
+  renderAll();
 }
 function normalize(cid){
   const c=C(cid);c.relation='neutral';c.tariff=10;c.mood+=15;c.tensionTurns=0;c.tariffWarTurns=0;
   addReaction(c,'normalize');
   logDiplo(`🕊 ${c.flag} ${c.name}과 관계 정상화`,'info');
-  toast(`${c.flag} ${c.name}과 정상화`,'info');renderAll();
+  toast(`${c.flag} ${c.name}과 정상화`,'info');
+  if(MP.enabled){
+    mpUpdateCountryStat(cid,{relation:c.relation,mood:c.mood,tariff:c.tariff});
+    mpPushDiploLog();
+    if(c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid)mpNotifyPlayer(c.playerUid,`🕊 ${P().flag}${P().name}이 관계 정상화를 요청했습니다.`);
+  }
+  renderAll();
 }
 
 // ══════════════════════════════════════════════════════
@@ -2430,6 +2466,11 @@ function spyOp(opId){
       G.approval=Math.max(0,G.approval-15);
       AI().filter(x=>x.id!==c.id).forEach(x=>{x.mood-=20;if(Math.random()<0.5)addReaction(x,'sanction','암살 시도는 국제법 위반입니다. 강력 규탄합니다.');});
       toast(`🚨 ${c.flag} 암살 실패 — 즉각 전쟁 선포!`,'bad');
+      if(MP.enabled&&c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid){
+        mpUpdateCountryStat(c.id,{relation:c.relation,mood:c.mood,warTurns:c.warTurns});
+        mpNotifyPlayer(c.playerUid,`🚨 ${P().flag}${P().name}의 암살 시도! 즉각 전쟁 선포로 대응했습니다.`);
+        mpPushEvLog();mpPushDiploLog();
+      }
     } else if(c) spyEscalation(c);
     renderAll();return;
   }
@@ -2462,6 +2503,15 @@ function spyOp(opId){
   if(G.spyLog.length>20)G.spyLog.pop();
   G.evLog.unshift({text:`🕵️ ${op.icon} ${op.name} 작전 성공`,type:'good',turn:G.turn});
   toast(`✅ ${op.name} 성공!`,'good');
+  // 멀티플레이: 타겟 국가 stats 및 내 stats 동기화
+  if(MP.enabled){
+    if(c&&c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid){
+      mpUpdateCountryStat(c.id,{gro:c.gro,bud:c.bud,mood:c.mood,mil:c.mil,unemp:c.unemp,relation:c.relation,warTurns:c.warTurns||0});
+      mpNotifyPlayer(c.playerUid,`🕵️ ${P().flag}${P().name}의 ${op.icon}${op.name} 작전 피해! ${msg}`);
+    }
+    mpPushEvLog();
+    mpSyncMyStats();
+  }
   renderAll();
 }
 function spyEscalation(c){
@@ -2502,6 +2552,11 @@ function spyEscalation(c){
       logDiplo(`⚠️ ${c.flag}${c.name} — 스파이 ${n}회 적발. 전쟁 직전 상황!`,'bad');
       toast(`⚠️ ${c.flag} 스파이 ${n}회 적발 — 전쟁 위기!`,'bad');
     }
+  }
+  // 멀티플레이: 스파이 발각 시 타겟(플레이어 국가) stats 동기화
+  if(MP.enabled&&c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid){
+    mpUpdateCountryStat(c.id,{mood:c.mood,relation:c.relation,tariff:c.tariff||0,warTurns:c.warTurns||0});
+    mpPushEvLog();mpPushDiploLog();
   }
 }
 
@@ -3288,6 +3343,11 @@ function formAlliance(cid){
   logDiplo(`🛡 ${c.flag} ${c.name}과 동맹 체결! 상호 방위 조약 서명.`,'good');
   AI().filter(x=>x.id!==cid&&Math.random()<0.3).forEach(x=>{x.mood-=10;});
   toast(`🛡 ${c.flag} ${c.name}과 동맹!`,'good');
+  if(MP.enabled){
+    mpUpdateCountryStat(cid,{relation:c.relation,mood:c.mood,tariff:c.tariff});
+    mpPushDiploLog();
+    if(c.isPlayer&&c.playerUid&&c.playerUid!==MP.uid)mpNotifyPlayer(c.playerUid,`🛡 ${P().flag}${P().name}이 동맹을 체결했습니다!`);
+  }
   renderAll();
 }
 
@@ -4056,6 +4116,7 @@ function listenRoomStatus() {
             mpListenGameState();
             MP._myReady = false;
             listenReady();
+            listenNotifications();
           });
         } else {
           // 클라이언트: 플레이어 목록에서 내 국가 확인 후 게임 시작 → 상태 감지 시작
@@ -4071,6 +4132,7 @@ function listenRoomStatus() {
             mpListenGameState();
             MP._myReady = false;
             listenReady();
+            listenNotifications();
           });
         }
       }
@@ -4144,6 +4206,53 @@ function mpSyncMyStats() {
     infl: p.infl,
   }).catch(err => {
     console.warn('mpSyncMyStats 실패:', err);
+  });
+}
+
+// E. 특정 국가의 stats를 Firebase에 즉시 업데이트 (외교/첩보 타겟 반영용)
+function mpUpdateCountryStat(cid, updates) {
+  if (!MP.enabled || !db || !MP.roomCode) return;
+  db.ref('rooms/' + MP.roomCode + '/gameState/countries/' + cid).update(updates).catch(err => {
+    console.warn('mpUpdateCountryStat 실패:', err);
+  });
+}
+
+// F. evLog를 Firebase에 공유
+function mpPushEvLog() {
+  if (!MP.enabled || !db || !MP.roomCode) return;
+  db.ref('rooms/' + MP.roomCode + '/gameState/evLog').set(G.evLog.slice(0, 20)).catch(err => {
+    console.warn('mpPushEvLog 실패:', err);
+  });
+}
+
+// G. diploLog를 Firebase에 공유
+function mpPushDiploLog() {
+  if (!MP.enabled || !db || !MP.roomCode) return;
+  db.ref('rooms/' + MP.roomCode + '/gameState/diploLog').set(G.diploLog.slice(0, 10)).catch(err => {
+    console.warn('mpPushDiploLog 실패:', err);
+  });
+}
+
+// H. 특정 플레이어에게 알림 전송
+function mpNotifyPlayer(targetUid, message) {
+  if (!MP.enabled || !db || !MP.roomCode) return;
+  const key = db.ref('rooms/' + MP.roomCode + '/notifications/' + targetUid).push().key;
+  db.ref('rooms/' + MP.roomCode + '/notifications/' + targetUid + '/' + key).set({
+    msg: message, turn: G.turn, from: MP.playerName, ts: Date.now()
+  }).catch(err => {
+    console.warn('mpNotifyPlayer 실패:', err);
+  });
+}
+
+// I. 수신 측 알림 수신 리스너
+function listenNotifications() {
+  if (!MP.enabled || !db || !MP.roomCode || !MP.uid) return;
+  db.ref('rooms/' + MP.roomCode + '/notifications/' + MP.uid).on('child_added', snap => {
+    const n = snap.val();
+    if (!n) return;
+    toast('📨 ' + n.from + ': ' + n.msg, 'bad');
+    G.evLog.unshift({ text: '📨 ' + n.from + '의 행동: ' + n.msg, type: 'bad', turn: G.turn });
+    snap.ref.remove();
   });
 }
 
