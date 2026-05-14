@@ -122,9 +122,24 @@ button{cursor:pointer;}
 .cs{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
 .sn{background:#1e2d45;color:var(--mu);}
 .sd{background:rgba(0,230,118,.15);color:var(--gr);}
+.sa{background:rgba(255,215,0,.2);color:#ffd700;}
 .st{background:rgba(255,152,0,.15);color:var(--wa);}
 .sw{background:rgba(255,68,68,.15);color:var(--re);}
 .smw{background:rgba(255,68,68,.25);color:#ff0000;animation:pr 1.2s infinite;}
+.cc.alliance-active{border-color:#ffd700;box-shadow:0 0 12px rgba(255,215,0,.2);}
+/* WORLD GOV */
+#wg-panel{font-size:13px;}
+.wg-members{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
+.wg-member-tag{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.3);color:var(--ac);}
+.wg-member-tag.self{background:rgba(255,215,0,.15);border-color:rgba(255,215,0,.4);color:#ffd700;}
+.wg-res{background:var(--p2);border:1px solid var(--bd);border-radius:8px;padding:9px 12px;margin-top:6px;font-size:12px;}
+.wg-res select{background:var(--p2);border:1px solid var(--bd);border-radius:6px;color:var(--tx);padding:4px 8px;font-size:11px;margin:0 4px;}
+.wg-btn{padding:5px 14px;border-radius:7px;border:none;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;}
+.wg-btn.join{background:rgba(108,99,255,.2);border:1px solid var(--ac);color:var(--ac);}
+.wg-btn.join:hover{background:var(--ac);color:#fff;}
+.wg-btn.res{background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.4);color:#ffd700;}
+.wg-btn.res:hover{background:#ffd700;color:#000;}
+.wg-btn:disabled{opacity:.35;cursor:not-allowed;}
 /* mood bar */
 .mood-bar{height:3px;background:var(--bd);border-radius:2px;margin:5px 0;}
 .mood-fill{height:3px;border-radius:2px;transition:width .5s,background .5s;}
@@ -557,6 +572,10 @@ button{cursor:pointer;}
 <div class="page" id="page-diplo">
   <div class="dpg">
     <div>
+      <div class="pnl" id="pnl-wg">
+        <div class="ph"><h3>🌐 세계정부 (WG)</h3><span style="font-size:10px;color:var(--mu)">국제 공동체 · 외교 의결 기구</span></div>
+        <div class="pb" id="wg-panel"></div>
+      </div>
       <div class="pnl" id="pnl-proposals" style="display:none">
         <div class="ph"><h3>📨 상대국 제안 <span id="proposal-badge" style="background:var(--re);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span></h3></div>
         <div class="pb" id="pending-proposals"></div>
@@ -1104,6 +1123,7 @@ function initGame(pid,mode){
     priceHistory:{},
     warOrders:{},
     warPremium:1,envMult:{oil:1,wheat:1,agri:1,steel:1,semi:1,car:1,pharma:1,rare:1},
+    wg:{member:false,seat:false,resCooldown:0},
     countries:CTPL.map(c=>({
       ...c,
       isPlayer:c.id===pid,
@@ -1292,7 +1312,7 @@ const WAR_ACTIONS=[
    cost:{bud:180},strMul:1.0,atkBonus:0.05,defBonus:0,appFx:0,ecoFx:0,enemyGdpFx:-0.07,enemyBudFx:-200,special:'cyber',
    req:{mil:30}},
   {id:'spec_nuke',branch:'special',icon:'☢️',name:'핵 투하',desc:'핵무기 사용. 즉각 전쟁 종료 가능. 국제 제재 극심.',tags:['atk'],
-   cost:{bud:0},strMul:3.0,atkBonus:1.2,defBonus:0,appFx:-25,ecoFx:-8,enemyGdpFx:-0.3,enemyMilFx:-60,special:'nuke',
+   cost:{bud:8000},strMul:3.0,atkBonus:1.2,defBonus:0,appFx:-25,ecoFx:-8,enemyGdpFx:-0.3,enemyMilFx:-60,special:'nuke',
    req:{mil:80,tech:'nuke'}},
 ];
 const WAR_BRANCH={army:{name:'육군',icon:'🪖',color:'#ff6b6b'},navy:{name:'해군',icon:'⚓',color:'#4fc3f7'},air:{name:'공군',icon:'✈️',color:'#81d4fa'},special:{name:'특수무기',icon:'☢️',color:'#ffd700'}};
@@ -1590,15 +1610,34 @@ function nextQ(){
   // 무역 수익: 매 턴 재정 반영
   const _expRev = Math.round(G.totExp * 9);   // 수출 총액의 9% 마진
   const _impCost = Math.round(G.totImp * 4);  // 수입 총액의 4% 관세·물류비
-  const _ftaBonus = AI().filter(c=>c.relation==='deal').length * 18; // FTA 1개국당 +18억
-  const _tradeNet = _expRev - _impCost + _ftaBonus;
+  const _ftaBonus = AI().filter(c=>c.relation==='deal').length * 18;
+  const _allianceBonus = AI().filter(c=>c.relation==='alliance').length * 35; // 동맹 1개국당 +35억
+  const _wgCost = G.wg&&G.wg.member ? 100 : 0; // 세계정부 분담금
+  const _tradeNet = _expRev - _impCost + _ftaBonus + _allianceBonus - _wgCost;
   if(_tradeNet!==0){
     p.bud=Math.max(0,p.bud+_tradeNet);
     const _parts=[];
-    if(_expRev>0) _parts.push(`수출 +$${_expRev}억`);
-    if(_impCost>0) _parts.push(`수입비 -$${_impCost}억`);
-    if(_ftaBonus>0) _parts.push(`FTA +$${_ftaBonus}억`);
-    G.evLog.unshift({text:`📦 무역수익 ${_parts.join(' | ')} → 순 ${_tradeNet>=0?'+':''}${_tradeNet}억 재정 반영`,type:_tradeNet>=0?'good':'bad',turn:G.turn});
+    if(_expRev>0) _parts.push(`수출 +${_expRev}억`);
+    if(_impCost>0) _parts.push(`수입비 -${_impCost}억`);
+    if(_ftaBonus>0) _parts.push(`FTA +${_ftaBonus}억`);
+    if(_allianceBonus>0) _parts.push(`동맹 +${_allianceBonus}억`);
+    if(_wgCost>0) _parts.push(`세계정부 -${_wgCost}억`);
+    G.evLog.unshift({text:`📦 무역수익 ${_parts.join(' | ')} → 순 ${_tradeNet>=0?'+':''}${_tradeNet}억`,type:_tradeNet>=0?'good':'bad',turn:G.turn});
+  }
+  // 세계정부 효과
+  if(G.wg&&G.wg.member){
+    G.approval=Math.min(100,G.approval+2); // 외교 신뢰도 +2
+    if(G.wg.resCooldown>0) G.wg.resCooldown--;
+    // 의장국 여부 (GDP 최고)
+    const topGDP=[...G.countries].filter(c=>!c.isPlayer).sort((a,b)=>b.gdp-a.gdp)[0];
+    G.wg.seat=!topGDP||p.gdp>=topGDP.gdp;
+    if(G.wg.seat){G.approval=Math.min(100,G.approval+3);if(G.turn%4===0)toast('🌐 세계정부 의장국! 지지율 +3%','good');}
+  }
+  // 동맹 군사 지원 (전쟁 중일 때)
+  const inWar=AI().some(c=>c.relation==='military_war');
+  if(inWar){
+    const allyCount=AI().filter(c=>c.relation==='alliance').length;
+    if(allyCount>0){p.mil=Math.min(p.mil+allyCount*5,999);if(G.turn%2===0)toast(`🛡 동맹 ${allyCount}개국 군사 지원 — 전력 +${allyCount*5}`,'good');}
   }
   G.totExp=0; G.totImp=0; G.tradeBought={}; G.tradeSold={};
   p.debt+=Math.random()*.3;
@@ -2959,18 +2998,19 @@ function renderPendingProposals(){
 // DIPLOMACY
 function renderDCards(){
   const el=document.getElementById('dcards');if(!el)return;
-  const sl={neutral:'sn',deal:'sd',tension:'st',tariff_war:'sw',military_war:'smw'};
-  const rl={neutral:'중립',deal:'FTA 체결',tension:'외교긴장',tariff_war:'관세전쟁',military_war:'⚔️ 군사전쟁'};
+  const sl={neutral:'sn',deal:'sd',alliance:'sa',tension:'st',tariff_war:'sw',military_war:'smw'};
+  const rl={neutral:'중립',deal:'FTA 체결',alliance:'🛡 동맹국',tension:'외교긴장',tariff_war:'관세전쟁',military_war:'⚔️ 군사전쟁'};
   el.innerHTML=AI().map(c=>{
     const moodColor=c.mood>30?'var(--gr)':c.mood>-10?'var(--ac)':c.mood>-40?'var(--wa)':'var(--re)';
     const moodLabel=c.mood>30?'우호적':c.mood>-10?'보통':c.mood>-40?'불만':'적대적';
-    const moodPct=Math.max(0,(c.mood+100)/2); // -100~100 → 0~100
-    const ccl={neutral:'',deal:'deal-active',tension:'',tariff_war:'tariff-active',military_war:'war-active'}[c.relation]||'';
+    const moodPct=Math.max(0,(c.mood+100)/2);
+    const ccl={neutral:'',deal:'deal-active',alliance:'alliance-active',tension:'',tariff_war:'tariff-active',military_war:'war-active'}[c.relation]||'';
+    const canAlliance=c.relation==='deal'&&c.mood>40;
     return `<div class="cc ${ccl}">
       <div class="cct">
         <div class="cf">${c.flag}</div>
         <div class="cin"><div class="cn">${c.name}</div><div class="cg">GDP: ${fG(c.gdp)} · 군사력: ${c.mil} · 관세: ${c.tariff}%</div></div>
-        <div class="cs ${sl[c.relation]}">${rl[c.relation]}</div>
+        <div class="cs ${sl[c.relation]||'sn'}">${rl[c.relation]||'중립'}</div>
       </div>
       <div style="font-size:10px;color:var(--mu);display:flex;justify-content:space-between;margin-bottom:3px">
         <span>감정: <span style="color:${moodColor};font-weight:700">${moodLabel} (${c.mood>0?'+':''}${Math.round(c.mood)})</span></span>
@@ -2978,15 +3018,17 @@ function renderDCards(){
       </div>
       <div class="mood-bar"><div class="mood-fill" style="width:${moodPct}%;background:${moodColor}"></div></div>
       <div class="cbtns">
-        <button class="cb" onclick="proposeDeal('${c.id}')" ${c.relation==='deal'?'disabled':''}>🤝 FTA</button>
+        <button class="cb" onclick="proposeDeal('${c.id}')" ${c.relation==='deal'||c.relation==='alliance'?'disabled':''}>🤝 FTA</button>
+        <button class="cb" onclick="formAlliance('${c.id}')" style="color:#ffd700;border-color:rgba(255,215,0,.4)" ${!canAlliance||c.relation==='alliance'?'disabled':''} title="FTA 체결 + 감정 40 이상 필요 · 비용 500억">🛡 동맹</button>
         <button class="cb" onclick="normalize('${c.id}')" ${c.relation==='neutral'?'disabled':''}>🕊 정상화</button>
-        <button class="cb d" onclick="raiseTension('${c.id}')" ${c.relation==='tension'||c.relation==='tariff_war'||c.relation==='military_war'?'disabled':''}>⚠️ 긴장</button>
-        <button class="cb d" onclick="declareTariffWar('${c.id}')" ${c.relation==='tariff_war'||c.relation==='military_war'?'disabled':''}>💥 관세전쟁</button>
+        <button class="cb d" onclick="raiseTension('${c.id}')" ${['tension','tariff_war','military_war','alliance'].includes(c.relation)?'disabled':''}>⚠️ 긴장</button>
+        <button class="cb d" onclick="declareTariffWar('${c.id}')" ${['tariff_war','military_war'].includes(c.relation)?'disabled':''}>💥 관세전쟁</button>
         <button class="cb d" onclick="declareMilWar('${c.id}')" ${c.relation==='military_war'?'disabled':''} style="background:rgba(255,68,68,.1);border-color:rgba(255,68,68,.3);">⚔️ 선전포고</button>
         ${c.relation==='military_war'?`<button class="cb" onclick="peaceNegotiate('${c.id}')" style="color:var(--gr);border-color:var(--gr)">🕊 평화협상</button>`:''}
       </div>
     </div>`;
   }).join('');
+  renderWGPanel();
 }
 function renderRLog(){
   const el=document.getElementById('rlog');if(!el)return;
@@ -3000,16 +3042,112 @@ function renderDLog(){
 }
 function renderRelOver(){
   const el=document.getElementById('relover');if(!el)return;
+  const allies=AI().filter(c=>c.relation==='alliance');
   const deals=AI().filter(c=>c.relation==='deal');
   const tens=AI().filter(c=>c.relation==='tension');
   const twars=AI().filter(c=>c.relation==='tariff_war');
   const mwars=AI().filter(c=>c.relation==='military_war');
   el.innerHTML=`<div style="display:flex;flex-direction:column;gap:8px">
+    <div><span style="color:#ffd700;font-weight:700">🛡 동맹 (${allies.length})</span><br><span style="font-size:11px;color:var(--mu)">${allies.map(c=>c.flag+c.name).join(', ')||'없음'}</span></div>
     <div><span style="color:var(--gr);font-weight:700">✅ FTA (${deals.length})</span><br><span style="font-size:11px;color:var(--mu)">${deals.map(c=>c.flag+c.name).join(', ')||'없음'}</span></div>
     <div><span style="color:var(--wa);font-weight:700">⚠️ 긴장 (${tens.length})</span><br><span style="font-size:11px;color:var(--mu)">${tens.map(c=>c.flag+c.name).join(', ')||'없음'}</span></div>
     <div><span style="color:var(--wa);font-weight:700">💥 관세전쟁 (${twars.length})</span><br><span style="font-size:11px;color:var(--mu)">${twars.map(c=>c.flag+c.name).join(', ')||'없음'}</span></div>
     <div><span style="color:var(--re);font-weight:700">⚔️ 군사전쟁 (${mwars.length})</span><br><span style="font-size:11px;color:var(--mu)">${mwars.map(c=>c.flag+c.name).join(', ')||'없음'}</span></div>
   </div>`;
+}
+
+// ══ 동맹 ════════════════════════════════════════════════
+function formAlliance(cid){
+  const c=C(cid),p=P();
+  if(c.relation!=='deal'){toast('FTA 체결 국가에만 동맹 가능','bad');return;}
+  if(c.mood<40){toast('감정 40 이상 필요','bad');return;}
+  if(p.bud<500){toast('동맹 비용: 500억 부족','bad');return;}
+  p.bud-=500;
+  c.relation='alliance'; c.tariff=0; c.mood=Math.min(100,c.mood+20);
+  logDiplo(`🛡 ${c.flag} ${c.name}과 동맹 체결! 상호 방위 조약 서명.`,'good');
+  AI().filter(x=>x.id!==cid&&Math.random()<0.3).forEach(x=>{x.mood-=10;});
+  toast(`🛡 ${c.flag} ${c.name}과 동맹!`,'good');
+  renderAll();
+}
+
+// ══ 세계정부 ═════════════════════════════════════════════
+function renderWGPanel(){
+  const el=document.getElementById('wg-panel');if(!el||!G.wg)return;
+  const wg=G.wg;
+  const allMembers=AI().filter(c=>c.wgMember);
+  const allies=AI().filter(c=>c.relation==='alliance');
+  const deals=AI().filter(c=>c.relation==='deal'||c.relation==='alliance');
+  const canJoin=!wg.member&&deals.length>=2&&P().bud>=300;
+  if(!wg.member){
+    el.innerHTML=`
+      <div style="color:var(--mu);font-size:12px;margin-bottom:10px">
+        세계정부는 국가 간 분쟁을 조정하고 집단 안보를 보장하는 국제 기구입니다.<br>
+        <b style="color:var(--tx)">가입 조건:</b> FTA/동맹 2개국 이상 · 가입비 300억
+      </div>
+      <div class="wg-members">${allMembers.map(c=>`<div class="wg-member-tag">${c.flag} ${c.name}</div>`).join('')||'<span style="color:var(--mu);font-size:11px">현재 회원국 없음</span>'}</div>
+      <button class="wg-btn join" onclick="joinWorldGov()" ${!canJoin?'disabled':''}>
+        🌐 세계정부 가입 (300억${deals.length<2?' · FTA/동맹 부족':''})
+      </button>`;
+  } else {
+    const resCd=wg.resCooldown||0;
+    el.innerHTML=`
+      <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <div style="background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.2);border-radius:8px;padding:8px 14px;font-size:12px">
+          <div style="color:#ffd700;font-weight:700">🌐 세계정부 회원국</div>
+          <div style="color:var(--mu);margin-top:2px">${wg.seat?'🏆 의장국':'일반 회원'} · 분담금 100억/분기</div>
+        </div>
+        <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);border-radius:8px;padding:8px 14px;font-size:12px">
+          <div style="color:var(--ac);font-weight:700">회원국 현황</div>
+          <div class="wg-members" style="margin:4px 0 0">${[{flag:P().flag,name:P().name,self:true},...allMembers].map(c=>`<div class="wg-member-tag ${c.self?'self':''}">${c.flag} ${c.name}</div>`).join('')}</div>
+        </div>
+      </div>
+      <div class="wg-res">
+        <b style="color:var(--go)">📜 결의안 제출</b><span style="font-size:10px;color:var(--mu);margin-left:8px">${resCd>0?`(${resCd}턴 쿨다운)`:'즉시 가능'}</span><br>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select id="wg-res-type">
+            <option value="sanction">🚫 경제 제재 (대상국 감정 -40, 관세 +30)</option>
+            <option value="peace">🕊 평화 촉구 (전쟁 중인 국가에 정상화 압력)</option>
+            <option value="aid">💰 긴급 원조 (동맹국 예산 +200억)</option>
+          </select>
+          <select id="wg-res-target">${AI().map(c=>`<option value="${c.id}">${c.flag} ${c.name}</option>`).join('')}</select>
+          <button class="wg-btn res" onclick="proposeResolution()" ${resCd>0?'disabled':''}>결의안 제출</button>
+        </div>
+      </div>`;
+  }
+}
+
+function joinWorldGov(){
+  const p=P();
+  if(p.bud<300){toast('가입비 300억 부족','bad');return;}
+  p.bud-=300;
+  G.wg.member=true;
+  AI().filter(c=>c.relation==='alliance'||c.relation==='deal').forEach(c=>c.wgMember=true);
+  G.approval=Math.min(100,G.approval+5);
+  logDiplo('🌐 세계정부 가입! 국제 공동체의 일원이 되었습니다.','good');
+  toast('🌐 세계정부 가입 완료!','good');
+  renderAll();
+}
+
+function proposeResolution(){
+  if(!G.wg.member){toast('세계정부 회원국만 가능','bad');return;}
+  if(G.wg.resCooldown>0){toast(`결의안 쿨다운: ${G.wg.resCooldown}턴 남음`,'bad');return;}
+  const type=document.getElementById('wg-res-type')?.value;
+  const tid=document.getElementById('wg-res-target')?.value;
+  const tc=C(tid);if(!tc)return;
+  G.wg.resCooldown=3;
+  if(type==='sanction'){
+    tc.mood=Math.max(-100,tc.mood-40); tc.tariff=Math.min(80,tc.tariff+30);
+    logDiplo(`🚫 세계정부 결의 — ${tc.flag} ${tc.name} 경제 제재 발동`,'warn');
+    toast(`🚫 ${tc.flag} ${tc.name} 제재 결의 통과`,'good');
+  } else if(type==='peace'){
+    if(tc.relation==='military_war'){tc.relation='neutral';tc.tariff=10;tc.mood+=10;logDiplo(`🕊 세계정부 평화 촉구 — ${tc.flag} ${tc.name} 전쟁 종료`,'good');}
+    else toast('전쟁 중인 국가가 아닙니다','bad');
+  } else if(type==='aid'){
+    const ally=AI().find(c=>c.relation==='alliance');
+    if(ally){ally.bud+=200;logDiplo(`💰 세계정부 원조 — ${ally.flag} ${ally.name} 긴급 지원`,'good');toast('💰 동맹국 원조 결의 통과','good');}
+    else toast('동맹국이 없습니다','bad');
+  }
+  renderAll();
 }
 
 // ══════════════════════════════════════════════════════
@@ -3084,7 +3222,7 @@ function goPage(n){
   document.getElementById('page-'+n).classList.add('active');
   document.querySelectorAll('.ntab')[['dash','trade','diplo','spy'].indexOf(n)].classList.add('active');
   if(n==='trade'){renderTradeTabs();renderTradeTable();renderInventory();renderFX();renderTradeStats();}
-  if(n==='diplo'){renderDCards();renderRLog();renderDLog();renderRelOver();}
+  if(n==='diplo'){renderDCards();renderRLog();renderDLog();renderRelOver();renderWGPanel();}
   if(n==='spy'){renderSpy();renderClimate('climate-pnl');}
 }
 let _tt;
