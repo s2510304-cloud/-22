@@ -1663,6 +1663,10 @@ function executeWarOrder(cid){
       logDiplo(`☢️ 핵 투하로 ${c.flag} ${c.name} 즉시 항복!`,'good');
       toast(`☢️ ${c.flag} ${c.name} 즉시 항복!`,'good');
       G.warOrders[cid]=null;
+      // 멀티플레이: 핵 공격으로 플레이어 국가 탈락 처리
+      if(MP.enabled && c.isPlayer && c.playerUid && c.playerUid !== MP.uid){
+        mpEliminatePlayer(c.playerUid, c.id, '핵 공격');
+      }
       return;
     }
   }else if(a.special==='missile'){
@@ -2570,7 +2574,13 @@ function spyOp(opId){
   else if(opId==='sabotage'&&c){c.gro-=7;c.bud-=600;msg=`${c.flag}${c.name} 산업 시설 피해. 성장 -7%, 재정 -600억.`;}
   else if(opId==='manipulate'&&c){c.mood=Math.min(100,c.mood+80);msg=`${c.flag}${c.name} 감정 +80.`;}
   else if(opId==='counter'){G.spyCI=Math.min(100,G.spyCI+60);msg='방첩망 강화 완료. 방첩 +60.';}
-  else if(opId==='coup'&&c){c.gro-=10;c.bud-=900;c.mood-=80;c.unemp+=6;msg=`${c.flag}${c.name} 내부 혼란 유발!`;}
+  else if(opId==='coup'&&c){
+    c.gro-=10;c.bud-=900;c.mood-=80;c.unemp+=6;msg=`${c.flag}${c.name} 내부 혼란 유발!`;
+    // 멀티플레이: 쿠데타 성공 시 플레이어 국가 탈락 처리
+    if(MP.enabled && c.isPlayer && c.playerUid && c.playerUid !== MP.uid){
+      mpEliminatePlayer(c.playerUid, c.id, '쿠데타');
+    }
+  }
   else if(opId==='assassinate'&&c){
     const leaders=LEADERS[c.id]||[];
     const victim=leaders.length?leaders[Math.floor(Math.random()*leaders.length)]:{title:'고위 인사',name:'미상',impact:'pol'};
@@ -2588,6 +2598,10 @@ function spyOp(opId){
     }
     msg=`${c.flag}${c.name} ${vTitle} ${vName} 암살 성공!`;
     showAssassination(c,vTitle,vName);
+    // 멀티플레이: 암살 성공 시 플레이어 국가 탈락 처리
+    if(MP.enabled && c.isPlayer && c.playerUid && c.playerUid !== MP.uid){
+      mpEliminatePlayer(c.playerUid, c.id, '대통령 암살');
+    }
   }
   G.spyLog.unshift({text:`✅ [성공] ${op.icon} ${op.name} — ${msg}`,turn:G.turn,fail:false});
   if(G.spyLog.length>20)G.spyLog.pop();
@@ -4520,13 +4534,40 @@ function mpNotifyPlayer(targetUid, message) {
   });
 }
 
+// J. 플레이어 탈락 처리 (핵/암살/쿠데타 등으로 나라 멸망 시)
+function mpEliminatePlayer(uid, countryId, reason) {
+  if (!MP.enabled || !db || !MP.roomCode) return;
+  // Firebase에 탈락 기록
+  db.ref('rooms/' + MP.roomCode + '/players/' + uid + '/eliminated').set(true);
+  db.ref('rooms/' + MP.roomCode + '/players/' + uid + '/eliminatedReason').set(reason);
+  // 해당 국가를 AI로 전환
+  const c = C(countryId);
+  if (c) { c.isPlayer = false; c.playerUid = null; c.eliminated = true; }
+  // 이벤트 로그
+  const pName = c ? (c.flag || '') + c.name : countryId;
+  G.evLog.unshift({ text: '💀 ' + pName + ' 탈락! (' + reason + ')', type: 'bad', turn: G.turn });
+  toast('💀 ' + pName + ' 탈락!', 'bad');
+  if (MP.enabled) { mpPushEvLog(); if (MP.isHost) mpPushGameState(); }
+  // 상대 플레이어에게 알림
+  mpNotifyPlayer(uid, '💀 당신의 나라가 ' + reason + '으로 멸망했습니다. 게임에서 탈락합니다.');
+}
+
 // I. 수신 측 알림 수신 리스너
 function listenNotifications() {
   if (!MP.enabled || !db || !MP.roomCode || !MP.uid) return;
   db.ref('rooms/' + MP.roomCode + '/notifications/' + MP.uid).on('child_added', snap => {
     const n = snap.val();
     if (!n) return;
-    toast('📨 ' + n.from + ': ' + n.msg, 'bad');
+    // 탈락 메시지 감지
+    if (n.msg && n.msg.includes('멸망했습니다')) {
+      toast('💀 당신의 나라가 멸망했습니다! 관전 모드로 전환됩니다.', 'bad');
+      MP._eliminated = true;
+      // 다음 분기 버튼 비활성화
+      const btn = document.getElementById('btn-nxt');
+      if (btn) { btn.disabled = true; btn.textContent = '💀 탈락'; btn.style.opacity = '0.4'; }
+    } else {
+      toast('📨 ' + n.from + ': ' + n.msg, 'bad');
+    }
     G.evLog.unshift({ text: '📨 ' + n.from + '의 행동: ' + n.msg, type: 'bad', turn: G.turn });
     snap.ref.remove();
   });
@@ -4649,20 +4690,49 @@ function mpListenGameState() {
 
 // Firebase에서 받은 상태를 G에 적용 (개인 데이터는 건드리지 않음)
 function mpApplyGameState(state) {
+  if (!state || typeof G === 'undefined') return;
+  const myId = MP.enabled ? (G.countries.find(c => c.playerUid === MP.uid) || {}).id : null;
+  const prevTurn = G.turn;
+
   if (state.countries) {
     Object.entries(state.countries).forEach(([cid, data]) => {
-      const c = G.countries.find(x => x.id === cid);
+      if (cid === myId) return; // 내 나라는 로컬 관리 — 덮어쓰지 않음
+      const c = G.countries ? G.countries.find(x => x.id === cid) : null;
       if (c) {
         // 공유 필드만 덮어씀 (inv, portfolio, techsOwned 등 개인 데이터 제외)
         const shared = ['gdp','gro','mil','bud','debt','unemp','infl','bal',
-                        'mood','relation','warTurns','prices','isPlayer','playerUid'];
+                        'mood','relation','warTurns','prices','isPlayer','playerUid','eliminated'];
         shared.forEach(k => { if (data[k] !== undefined) c[k] = data[k]; });
       }
     });
   }
+
   if (state.evLog) G.evLog = state.evLog;
   if (state.diploLog) G.diploLog = state.diploLog;
-  if (state.turn !== undefined) G.turn = state.turn;
+
+  // 분기가 증가했으면 → 클라이언트 개인 상태 리셋
+  if (state.turn && state.turn > prevTurn) {
+    G.turn = state.turn;
+    G.pp = 2;
+    G.tradeBought = {};
+    G.tradeSold = {};
+    G.totExp = 0;
+    G.totImp = 0;
+    // 내 나라 기본 경제 성장 적용
+    const p = G.countries.find(c => c.playerUid === MP.uid);
+    if (p) {
+      p.gro = Math.max(-5, Math.min(20, p.gro));
+      p.gdp = Math.max(100, p.gdp * (1 + p.gro / 100));
+      p.debt = Math.min(300, p.debt + Math.random() * 0.3);
+      // 세금 수입
+      const tax = Math.round(p.gdp * 0.02 * Math.max(0.3, 1 - p.unemp * 0.04));
+      p.bud += tax;
+    }
+    // 분기 증가 후 내 스텟 동기화
+    setTimeout(() => { if (MP.enabled && !MP.isHost) mpSyncMyStats(); }, 500);
+  } else {
+    G.turn = state.turn || G.turn;
+  }
 }
 
 // ── 다음 분기 동기화 ──────────────────────────────────────────
