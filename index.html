@@ -1030,6 +1030,31 @@ const TECH_TREE=[
    desc:'자율주행·수소차 통합 플랫폼. 자동차 수출 세계 최강국 달성.',
    req:{semi:22,rare:15,steel:18,car:8},
    fx:{gro:+2.5,bud:+450,mil:+5},fxLabel:'성장률 +2.5% · 예산 +450억 · 군사 +5'},
+  // ── 산업 인프라 (자원 자동 생산) ────────────────────────
+  {id:'oil_field',  tier:1,icon:'🛢️',name:'국영 유전',     prereq:[],
+   desc:'국내 원유 채굴 시설 건설. 매 분기 원유를 자동으로 생산합니다.',
+   req:{steel:4,oil:2},
+   fx:{gro:+0.2},produce:{oil:3},fxLabel:'⚙️ 매 분기 원유 +3 자동 생산 · 성장률 +0.2%'},
+  {id:'rare_mine',  tier:1,icon:'⛏️',name:'희토류 광산',   prereq:[],
+   desc:'국내 희토류 광산 개발. 매 분기 희토류를 자동으로 생산합니다.',
+   req:{steel:5,oil:3},
+   fx:{gro:+0.2},produce:{rare:2},fxLabel:'⚙️ 매 분기 희토류 +2 자동 생산 · 성장률 +0.2%'},
+  {id:'agri_complex',tier:2,icon:'🌿',name:'농업 복합단지', prereq:['agri_mod'],
+   desc:'스마트 농장 확대. 매 분기 농산물·밀을 자동으로 생산합니다.',
+   req:{agri:8,steel:5,pharma:3},
+   fx:{gro:+0.3,appFx:+3},produce:{agri:5,wheat:4},fxLabel:'⚙️ 농산물 +5, 밀 +4/분기 · 성장 +0.3%'},
+  {id:'steel_mill', tier:2,icon:'🏭',name:'대형 철강 제련소',prereq:['renewable'],
+   desc:'대규모 철강 생산 시설. 매 분기 철강을 자동으로 생산합니다.',
+   req:{steel:10,oil:6},
+   fx:{gro:+0.3},produce:{steel:5},fxLabel:'⚙️ 매 분기 철강 +5 자동 생산 · 성장률 +0.3%'},
+  {id:'pharma_complex',tier:2,icon:'💊',name:'제약 복합단지',prereq:['biotech1'],
+   desc:'대규모 의약품 생산 라인. 매 분기 의약품을 자동으로 생산합니다.',
+   req:{pharma:10,agri:5},
+   fx:{appFx:+4},produce:{pharma:4},fxLabel:'⚙️ 매 분기 의약품 +4 자동 생산 · 지지율 +4'},
+  {id:'semi_mass',  tier:2,icon:'🔬',name:'반도체 양산 체제',prereq:['semi_fab'],
+   desc:'반도체 파운드리 풀가동. 매 분기 반도체를 자동으로 생산합니다.',
+   req:{semi:10,rare:5},
+   fx:{gro:+0.4},produce:{semi:3},fxLabel:'⚙️ 매 분기 반도체 +3 자동 생산 · 성장률 +0.4%'},
 ];
 
 const TERROR_EVENTS=[
@@ -1700,6 +1725,28 @@ function nextQ(){
     if(allyCount>0){p.mil=Math.min(p.mil+allyCount*5,999);if(G.turn%2===0)toast(`🛡 동맹 ${allyCount}개국 군사 지원 — 전력 +${allyCount*5}`,'good');}
   }
   G.totExp=0; G.totImp=0; G.tradeBought={}; G.tradeSold={};
+
+  // 세금 수입 (GDP의 2% · 실업률 보정)
+  const _taxIncome=Math.round(p.gdp*0.02*Math.max(0.3,1-p.unemp*0.04));
+  p.bud+=_taxIncome;
+  G.evLog.unshift({text:`💰 세금 수입 +$${_taxIncome}억 (GDP ${fG(p.gdp)} 기준)`,type:'good',turn:G.turn});
+
+  // 산업 인프라 자원 자동 생산
+  const _prodItems=[];
+  TECH_TREE.filter(t=>t.produce&&G.techsOwned.has(t.id)).forEach(t=>{
+    Object.entries(t.produce).forEach(([gid,amt])=>{
+      G.inv[gid]=(G.inv[gid]||0)+amt;
+      const pf=G.portfolio[gid]||{qty:0,totalCost:0};
+      pf.qty+=amt; G.portfolio[gid]=pf;
+      const g=GOODS.find(x=>x.id===gid);
+      _prodItems.push(`${g.emoji}${g.name} +${amt}`);
+    });
+  });
+  if(_prodItems.length){
+    G.evLog.unshift({text:`⚙️ 자원 생산: ${_prodItems.join(' · ')}`,type:'info',turn:G.turn});
+    toast(`⚙️ 자원 자동 생산 완료!`,'info');
+  }
+
   p.debt+=Math.random()*.3;
 
   G.countries.forEach(c=>GOODS.forEach(g=>{
