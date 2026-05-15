@@ -218,6 +218,20 @@ button{cursor:pointer;}
 #srank-refresh{background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:6px;color:rgba(255,255,255,.35);font-size:12px;padding:2px 8px;cursor:pointer;margin-left:auto;transition:all .2s;}
 #srank-refresh:hover{border-color:rgba(108,99,255,.6);color:rgba(108,99,255,.9);}
 @media(max-width:680px){#splash-layout{flex-direction:column;gap:20px;}#globe-canvas{width:160px;height:160px;}#splash-ranks-list{grid-template-columns:1fr;}}
+/* TAX PANEL */
+.tax-row{display:flex;flex-direction:column;gap:3px;padding:8px 0;border-bottom:1px solid var(--bd);}
+.tax-row:last-of-type{border-bottom:none;}
+.tax-top{display:flex;align-items:center;gap:7px;}
+.tax-ico{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
+.tax-info{flex:1;min-width:0;}
+.tax-name{font-size:12px;font-weight:700;}
+.tax-desc{font-size:10px;color:var(--mu);margin-top:1px;}
+.tax-amt{font-size:13px;font-weight:800;color:var(--gr);white-space:nowrap;}
+.tax-bar-wrap{height:4px;background:var(--bd);border-radius:2px;margin-top:5px;}
+.tax-bar-fill{height:4px;border-radius:2px;transition:width .6s;}
+.tax-total{display:flex;justify-content:space-between;align-items:center;padding-top:10px;margin-top:6px;border-top:2px solid var(--bd);}
+.tax-total-lbl{font-size:12px;font-weight:700;color:var(--tx);}
+.tax-total-amt{font-size:17px;font-weight:900;color:var(--go);}
 /* SELECT */
 #sel{position:fixed;inset:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:22px;}
 #sel h1{font-size:36px;font-weight:800;color:var(--ac);margin-bottom:4px;}
@@ -626,6 +640,7 @@ button{cursor:pointer;}
       <div class="pnl"><div class="ph"><h3>🗺 국가 지도</h3></div><div class="pb" style="padding:14px;text-align:center;" id="map-container"></div></div>
       <div class="pnl"><div class="ph"><h3>🏆 GDP 순위</h3></div><div class="pb" id="lb"></div></div>
       <div class="pnl"><div class="ph"><h3>📊 내 국가 요약</h3></div><div class="pb" id="mysum"></div></div>
+      <div class="pnl"><div class="ph"><h3>💰 세금 현황</h3><span style="font-size:10px;color:var(--mu)">다음 분기 예상 세수</span></div><div class="pb" id="tax-panel"></div></div>
       <div class="pnl"><div class="ph"><h3>🌍 기후·환경</h3><span style="font-size:10px;color:var(--mu)">오염↑→기온↑→재해</span></div><div class="pb" id="climate-dash"></div></div>
     </div>
   </div>
@@ -1880,15 +1895,17 @@ function nextQ(){
   }
   G.totExp=0; G.totImp=0; G.tradeBought={}; G.tradeSold={};
 
-  // 세금 수입 (주 수입원) — 소득세·법인세·부가가치세 세분화
-  const _empFactor = Math.max(0.3, 1 - p.unemp * 0.04);          // 고용률 보정
-  const _groFactor = Math.max(0.1, Math.min(2.0, 0.5 + p.gro/8)); // 성장률 보정
-  const _incomeTax = Math.round(p.gdp * 0.020 * _empFactor);  // 소득세 (주 세원)
-  const _corpTax   = Math.round(p.gdp * 0.010 * _groFactor);  // 법인세 (성장할수록 ↑)
-  const _vat       = Math.round(p.gdp * 0.006);               // 부가가치세 (경기 무관)
-  const _taxIncome = _incomeTax + _corpTax + _vat;
+  // 세금 수입 (주 수입원) — 5개 세목 세분화
+  const _empFactor = Math.max(0.3, 1 - p.unemp * 0.04);
+  const _groFactor = Math.max(0.1, Math.min(2.0, 0.5 + p.gro / 8));
+  const _incomeTax = Math.round(p.gdp * 0.030 * _empFactor);  // 소득세 (고용률 연동)
+  const _corpTax   = Math.round(p.gdp * 0.018 * _groFactor);  // 법인세 (성장률 연동)
+  const _vat       = Math.round(p.gdp * 0.012);               // 부가가치세 (소비 기반)
+  const _propTax   = Math.round(p.gdp * 0.008);               // 재산세 (안정 세수)
+  const _customs   = Math.round(p.gdp * 0.005);               // 관세 (수입 연동)
+  const _taxIncome = _incomeTax + _corpTax + _vat + _propTax + _customs;
   p.bud += _taxIncome;
-  G.evLog.unshift({text:`💰 세금수입 +$${_taxIncome}억 | 소득세 +${_incomeTax}억 · 법인세 +${_corpTax}억 · 부가세 +${_vat}억`,type:'good',turn:G.turn});
+  G.evLog.unshift({text:`💰 세금수입 +${_taxIncome}억 | 소득세 +${_incomeTax}억 · 법인세 +${_corpTax}억 · 부가세 +${_vat}억 · 재산세 +${_propTax}억 · 관세 +${_customs}억`,type:'good',turn:G.turn});
 
   // 산업 인프라 자원 자동 생산
   const _prodItems=[];
@@ -3154,7 +3171,7 @@ function renderSpy(){
 }
 function renderAll(){
   renderHUD(); renderKPIs(); renderPolicies(); renderEvLog();
-  renderWarBanner(); renderCitizens(); renderMap(); renderLB(); renderMySummary();
+  renderWarBanner(); renderCitizens(); renderMap(); renderLB(); renderMySummary(); renderTaxPanel();
   renderTradeTabs(); renderTradeTable(); renderInventory(); renderFX(); renderTradeStats();
   renderStatePowers(); renderTechTree(); renderPortfolio();
   renderPendingProposals(); renderDCards(); renderRLog(); renderDLog(); renderRelOver();
@@ -3272,14 +3289,9 @@ function renderLB(){
 function renderMySummary(){
   const p=P(),rank=[...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.isPlayer)+1;
   const mwars=AI().filter(c=>c.relation==='military_war').length;
-  // 다음 분기 세금 예상
   const _ef=Math.max(0.3,1-p.unemp*0.04);
   const _gf=Math.max(0.1,Math.min(2.0,0.5+p.gro/8));
-  const _inc=Math.round(p.gdp*0.020*_ef);
-  const _corp=Math.round(p.gdp*0.010*_gf);
-  const _vat=Math.round(p.gdp*0.006);
-  const _taxEst=_inc+_corp+_vat;
-  // 무역 보너스 예상
+  const _taxEst=Math.round(p.gdp*0.030*_ef)+Math.round(p.gdp*0.018*_gf)+Math.round(p.gdp*0.012)+Math.round(p.gdp*0.008)+Math.round(p.gdp*0.005);
   const _ftaN=AI().filter(c=>c.relation==='deal').length;
   const _allyN=AI().filter(c=>c.relation==='alliance').length;
   const _tradeEst=_ftaN*5+_allyN*10-(G.wg&&G.wg.member?100:0);
@@ -3287,11 +3299,7 @@ function renderMySummary(){
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">현재 순위</span><strong style="color:var(--go)">${rank}위 / ${G.countries.length}개국</strong></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">남은 분기</span><strong>${G.infiniteMode?'<span style="color:var(--go)">♾️ 무한</span>':`${G.maxTurns-G.turn}분기`}</strong></div>
     <div style="border-top:1px solid var(--bd);margin:2px 0"></div>
-    <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px">💰 다음 분기 세금 예상</div>
-    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">├ 소득세</span><span style="color:var(--gr)">+${_inc}억</span></div>
-    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">├ 법인세</span><span style="color:var(--gr)">+${_corp}억</span></div>
-    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">└ 부가가치세</span><span style="color:var(--gr)">+${_vat}억</span></div>
-    <div style="display:flex;justify-content:space-between"><strong style="color:var(--mu)">세금 합계</strong><strong style="color:var(--go)">+${_taxEst}억</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">💰 분기 세수 예상</span><strong style="color:var(--go)">+${_taxEst}억</strong></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">무역 보너스(보조)</span><span style="color:${_tradeEst>=0?'var(--gr)':'var(--re)'}">${_tradeEst>=0?'+':''}${_tradeEst}억</span></div>
     <div style="border-top:1px solid var(--bd);margin:2px 0"></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">FTA 국가</span><strong style="color:var(--gr)">${_ftaN}개국</strong></div>
@@ -3299,6 +3307,32 @@ function renderMySummary(){
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">군사전쟁</span><strong style="color:var(--re)">${mwars}개국${mwars>0?' ⚔️':''}</strong></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">시민 지지율</span><strong style="color:${appLvl(G.approval).color}">${G.approval}%</strong></div>
   </div>`;
+}
+
+function renderTaxPanel(){
+  const p=P(); if(!p) return;
+  const el=document.getElementById('tax-panel'); if(!el) return;
+  const _ef=Math.max(0.3,1-p.unemp*0.04);
+  const _gf=Math.max(0.1,Math.min(2.0,0.5+p.gro/8));
+  const taxes=[
+    {ico:'👤',name:'소득세',      desc:`고용률 ${Math.round((1-p.unemp*0.04)*100)}% 반영`,   amt:Math.round(p.gdp*0.030*_ef), color:'#4ade80'},
+    {ico:'🏢',name:'법인세',      desc:`성장률 ${p.gro.toFixed(1)}% 반영`,                   amt:Math.round(p.gdp*0.018*_gf), color:'#60a5fa'},
+    {ico:'🛒',name:'부가가치세',  desc:'소비 기반 — GDP 비례 고정',                           amt:Math.round(p.gdp*0.012),     color:'#f59e0b'},
+    {ico:'🏠',name:'재산세',      desc:'자산 과세 — 안정적 세수',                             amt:Math.round(p.gdp*0.008),     color:'#a78bfa'},
+    {ico:'🚢',name:'관세',        desc:'수입품 과세 — 무역 연동',                             amt:Math.round(p.gdp*0.005),     color:'#fb923c'},
+  ];
+  const total=taxes.reduce((s,t)=>s+t.amt,0);
+  el.innerHTML=taxes.map(t=>{
+    const pct=total>0?Math.round(t.amt/total*100):0;
+    return `<div class="tax-row">
+      <div class="tax-top">
+        <span class="tax-ico">${t.ico}</span>
+        <div class="tax-info"><div class="tax-name">${t.name}</div><div class="tax-desc">${t.desc}</div></div>
+        <span class="tax-amt">+${t.amt}억</span>
+      </div>
+      <div class="tax-bar-wrap"><div class="tax-bar-fill" style="width:${pct}%;background:${t.color}"></div></div>
+    </div>`;
+  }).join('')+`<div class="tax-total"><span class="tax-total-lbl">🏦 분기 세수 합계</span><span class="tax-total-amt">+${total}억</span></div>`;
 }
 
 // TRADE
@@ -4769,9 +4803,11 @@ function mpApplyGameState(state) {
       // 세금 수입 세분화 (주 수입원)
       const _empFactor = Math.max(0.3, 1 - p.unemp * 0.04);
       const _groFactor = Math.max(0.1, Math.min(2.0, 0.5 + p.gro / 8));
-      const tax = Math.round(p.gdp * 0.020 * _empFactor)
-                + Math.round(p.gdp * 0.010 * _groFactor)
-                + Math.round(p.gdp * 0.006);
+      const tax = Math.round(p.gdp * 0.030 * _empFactor)
+                + Math.round(p.gdp * 0.018 * _groFactor)
+                + Math.round(p.gdp * 0.012)
+                + Math.round(p.gdp * 0.008)
+                + Math.round(p.gdp * 0.005);
       p.bud += tax;
       // 자원 자동 생산 (기술 인프라)
       TECH_TREE.filter(t => t.produce && G.techsOwned.has(t.id)).forEach(t => {
