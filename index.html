@@ -25,7 +25,7 @@ button{cursor:pointer;}
 #app-v{font-size:13px;font-weight:800;}
 #app-b{width:76px;height:5px;background:var(--bd);border-radius:3px;overflow:hidden;}
 #app-f{height:5px;border-radius:3px;transition:width .5s,background .5s;}
-#btn-nxt{background:var(--ac);color:#fff;border:none;padding:7px 15px;border-radius:8px;font-weight:700;font-size:13px;}
+#btn-nxt{background:var(--ac);color:#fff;border:none;padding:7px 15px;border-radius:8px;font-weight:700;font-size:13px;touch-action:manipulation;}
 #btn-nxt:hover{filter:brightness(1.15);}
 /* PAGES */
 .page{display:none;padding:14px;max-width:1440px;margin:0 auto;}.page.active{display:block;}
@@ -2060,14 +2060,14 @@ function nextQ(){
   applyActivePowers();
   doClimate();
   doTerror();
-  doCivilWar(); if(G.gameOver)return;
+  doCivilWar(); if(G.gameOver&&!(MP.enabled&&MP.isHost))return;
   updateMarket();
   if(G.spyBoost>0){G.spyBoost--;P().gro+=2.0;}
   aiSpyAttack();
   aiActiveActions();
   recalcApproval();
-  if(G.turn>=G.election.next&&!G.gameOver){doElection();if(G.gameOver)return;}
-  if(G.approval<=10){endGame('protest');return;}
+  if(G.turn>=G.election.next&&!G.gameOver){doElection();if(G.gameOver&&!(MP.enabled&&MP.isHost))return;}
+  if(G.approval<=10&&!(MP.enabled&&MP.isHost)){endGame('protest');return;}
   if(G.approval<=20)toast(`⚠️ 지지율 ${G.approval}%! 내전·탄핵 위기!`,'warn');
 
   const qLabel=`Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)}`;
@@ -3997,7 +3997,8 @@ function endGame(reason){
     mpPushEvLog();
     // 관전 모드: 다음 분기 버튼 비활성화, HUD 업데이트
     const btn = document.getElementById('btn-nxt');
-    if (btn) { btn.disabled = true; btn.textContent = '💀 게임오버 (관전 중)'; btn.style.background = 'var(--re)'; btn.style.color = '#fff'; }
+    if (btn && !MP.isHost) { btn.disabled = true; btn.textContent = '💀 게임오버 (관전 중)'; btn.style.background = 'var(--re)'; btn.style.color = '#fff'; }
+    else if (btn && MP.isHost) { btn.textContent = '💀관전▶'; btn.style.background = 'var(--re)'; btn.style.color = '#fff'; }
     renderAll();
     // 게임오버 연출만 보여주고 관전 유지
     if (reason==='protest') {
@@ -5325,10 +5326,8 @@ async function mpAdvanceTurn() {
     }
     // 3. nextQ() 실행 (REAL_AI만 시뮬하므로 다른 플레이어 stats 보존됨)
     nextQ();
-    // 4. 변경된 게임 상태를 Firebase에 push
-    if (!G.gameOver) {
-      mpPushGameState();
-    }
+    // 4. 변경된 게임 상태를 Firebase에 push (호스트 게임오버 후에도 클라이언트에 동기화)
+    mpPushGameState();
   } finally {
     _mpAdvancingTurn = false;
   }
