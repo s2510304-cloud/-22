@@ -1364,6 +1364,8 @@ function initGame(pid,mode){
     evLog:[],diploLog:[],reactions:[],
     inv:{},totExp:0,totImp:0,tradeBought:{},tradeSold:{},
     taxRates:{income:1.0,corp:1.0,vat:1.0,prop:1.0,customs:1.0},
+    aiAlliances:[],
+    wgBanTurns:0,
     approval:65,prevApp:65,
     gameOver:false,
     election:{next:16},
@@ -1975,13 +1977,14 @@ function nextQ(){
   }
   // 세계정부 효과
   if(G.wg&&G.wg.member){
-    G.approval=Math.min(100,G.approval+2); // 외교 신뢰도 +2
+    G.approval=Math.min(100,G.approval+2);
     if(G.wg.resCooldown>0) G.wg.resCooldown--;
-    // 의장국 여부 (GDP 최고)
     const topGDP=[...G.countries].filter(c=>!c.isPlayer).sort((a,b)=>b.gdp-a.gdp)[0];
     G.wg.seat=!topGDP||p.gdp>=topGDP.gdp;
     if(G.wg.seat){G.approval=Math.min(100,G.approval+3);if(G.turn%4===0)toast('🌐 세계정부 의장국! 지지율 +3%','good');}
   }
+  if(G.wgBanTurns>0) G.wgBanTurns--;
+  checkWGExpulsion();
   // 동맹 군사 지원 (전쟁 중일 때)
   const inWar=AI().some(c=>c.relation==='military_war');
   if(inWar){
@@ -3152,18 +3155,76 @@ function aiActiveActions(){
   });
 
   // ── AI ↔ AI 상호작용 ────────────────────────────────
-  const ais=AI();
-  if(ais.length>=2 && Math.random()<0.4){
-    const a=ais[Math.floor(Math.random()*ais.length)];
-    const b=ais.filter(x=>x.id!==a.id)[Math.floor(Math.random()*(ais.length-1))];
+  const aisArr=REAL_AI();
+  if(aisArr.length>=2&&Math.random()<0.4){
+    const a=aisArr[Math.floor(Math.random()*aisArr.length)];
+    const b=aisArr.filter(x=>x.id!==a.id)[Math.floor(Math.random()*(aisArr.length-1))];
     if(a&&b){
-      // AI끼리 무역 → 쌍방 GDP 소폭 증가
       const boost=0.2+Math.random()*0.4;
       a.gro+=boost; b.gro+=boost;
-      if(Math.random()<0.25)
-        G.evLog.unshift({text:`🤝 ${a.flag}${a.name}↔${b.flag}${b.name} 교역 확대 (쌍방 GDP 상승)`,type:'info',turn:G.turn});
+      if(Math.random()<0.2)
+        G.evLog.unshift({text:`🤝 ${a.flag}${a.name}↔${b.flag}${b.name} 교역 확대`,type:'info',turn:G.turn});
     }
   }
+
+  // ── AI끼리 동맹 체결 ─────────────────────────────────
+  if(aisArr.length>=2&&Math.random()<0.25){
+    const candA=aisArr.filter(c=>c.gdp>2500&&c.relation!=='military_war');
+    if(candA.length>=2){
+      const a=candA[Math.floor(Math.random()*candA.length)];
+      const b=candA.filter(x=>x.id!==a.id&&!G.aiAlliances.find(al=>(al.a===a.id&&al.b===x.id)||(al.a===x.id&&al.b===a.id)))[0];
+      if(b&&Math.random()<0.10){
+        G.aiAlliances.push({a:a.id,b:b.id,since:G.turn});
+        a.gro+=0.3; b.gro+=0.3;
+        G.evLog.unshift({text:`🤝 ${a.flag}${a.name} ↔ ${b.flag}${b.name} 동맹 조약 체결!`,type:'good',turn:G.turn});
+        logDiplo(`🤝 ${a.flag}${a.name}↔${b.flag}${b.name} 동맹 체결`,'good');
+        // 동맹 중 한 쪽이 이미 플레이어와 전쟁 → 다른 쪽도 참전 경고
+        if(a.relation==='military_war'||b.relation==='military_war')
+          toast(`⚔️ ${a.flag}${a.name}↔${b.flag}${b.name} 동맹! 전쟁 연루 주의`,'warn');
+      }
+    }
+  }
+
+  // ── AI 동맹 붕괴 ─────────────────────────────────────
+  G.aiAlliances=G.aiAlliances.filter(al=>{
+    const a=C(al.a),b=C(al.b); if(!a||!b) return false;
+    if((a.relation==='military_war'||b.relation==='military_war')&&Math.random()<0.35){
+      G.evLog.unshift({text:`💔 ${a.flag}${a.name}↔${b.flag}${b.name} 전쟁으로 동맹 붕괴`,type:'warn',turn:G.turn});
+      return false;
+    }
+    if(G.turn-al.since>18&&Math.random()<0.12){
+      G.evLog.unshift({text:`📋 ${a.flag}${a.name}↔${b.flag}${b.name} 동맹 조약 만료`,type:'info',turn:G.turn});
+      return false;
+    }
+    return true;
+  });
+
+  // ── AI 동맹국 참전 (플레이어와 동맹 한쪽이 전쟁 중) ──
+  G.aiAlliances.forEach(al=>{
+    const a=C(al.a),b=C(al.b); if(!a||!b) return;
+    [[a,b],[b,a]].forEach(([at,def])=>{
+      if(at.relation==='military_war'&&def.relation!=='military_war'&&Math.random()<0.30){
+        def.relation='military_war'; def.warTurns=0; def.mood=-80;
+        G.evLog.unshift({text:`⚔️ ${def.flag}${def.name}이 동맹 ${at.flag}${at.name} 지원으로 참전!`,type:'bad',turn:G.turn});
+        logDiplo(`⚔️ ${def.flag}${def.name} AI 동맹 참전`,'bad');
+        toast(`⚔️ ${def.flag}${def.name} 참전!`,'bad');
+      }
+    });
+  });
+
+  // ── AI 세계정부 자체 가입/탈퇴 ──────────────────────
+  REAL_AI().forEach(c=>{
+    if(!c.wgMember&&c.gdp>4000&&c.relation!=='military_war'&&Math.random()<0.07){
+      c.wgMember=true;
+      G.evLog.unshift({text:`🌐 ${c.flag}${c.name} 세계정부 독자 가입`,type:'good',turn:G.turn});
+      logDiplo(`🌐 ${c.flag}${c.name} 세계정부 가입`,'good');
+    }
+    if(c.wgMember&&(c.relation==='military_war'||(c.mood<-65&&Math.random()<0.30))){
+      c.wgMember=false;
+      G.evLog.unshift({text:`🚪 ${c.flag}${c.name} 세계정부 탈퇴 선언`,type:'warn',turn:G.turn});
+      logDiplo(`🚪 ${c.flag}${c.name} 세계정부 탈퇴`,'warn');
+    }
+  });
 }
 
 function acceptProposal(idx){
@@ -3747,29 +3808,55 @@ function renderWGPanel(){
   const allies=AI().filter(c=>c.relation==='alliance');
   const deals=AI().filter(c=>c.relation==='deal'||c.relation==='alliance');
   const canJoin=!wg.member&&deals.length>=2&&P().bud>=300;
+  // AI 동맹 현황 공통 섹션
+  const aiAllianceHTML=(G.aiAlliances&&G.aiAlliances.length)
+    ?G.aiAlliances.map(al=>{const a=C(al.a),b=C(al.b);return a&&b?`<span style="font-size:11px;background:rgba(255,255,255,.06);border:1px solid var(--bd);border-radius:6px;padding:2px 7px">${a.flag}${a.name} ↔ ${b.flag}${b.name}</span>`:''}).join('')
+    :'<span style="color:var(--mu);font-size:11px">현재 없음</span>';
+
   if(!wg.member){
+    const banLeft=G.wgBanTurns||0;
     el.innerHTML=`
       <div style="color:var(--mu);font-size:12px;margin-bottom:10px">
         세계정부는 국가 간 분쟁을 조정하고 집단 안보를 보장하는 국제 기구입니다.<br>
         <b style="color:var(--tx)">가입 조건:</b> FTA/동맹 2개국 이상 · 가입비 300억
       </div>
-      <div class="wg-members">${allMembers.map(c=>`<div class="wg-member-tag">${c.flag} ${c.name}</div>`).join('')||'<span style="color:var(--mu);font-size:11px">현재 회원국 없음</span>'}</div>
-      <button class="wg-btn join" onclick="joinWorldGov()" ${!canJoin?'disabled':''}>
+      ${banLeft>0?`<div style="background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.3);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--re);margin-bottom:8px">🚨 추방 이후 재가입 쿨다운: <b>${banLeft}분기</b> 남음</div>`:''}
+      <div style="margin-bottom:8px"><div style="font-size:10px;color:var(--mu);margin-bottom:5px;text-transform:uppercase;letter-spacing:.8px">현재 회원국</div>
+      <div class="wg-members">${allMembers.map(c=>`<div class="wg-member-tag">${c.flag} ${c.name}</div>`).join('')||'<span style="color:var(--mu);font-size:11px">현재 없음</span>'}</div></div>
+      <div style="margin-bottom:10px"><div style="font-size:10px;color:var(--mu);margin-bottom:5px;text-transform:uppercase;letter-spacing:.8px">🤝 AI 동맹 현황</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">${aiAllianceHTML}</div></div>
+      <button class="wg-btn join" onclick="joinWorldGov()" ${(!canJoin||banLeft>0)?'disabled':''}>
         🌐 세계정부 가입 (300억${deals.length<2?' · FTA/동맹 부족':''})
       </button>`;
   } else {
     const resCd=wg.resCooldown||0;
+    const warWithMember=AI().filter(c=>c.wgMember&&c.relation==='military_war').length;
+    const angryMembers=AI().filter(c=>c.wgMember&&c.mood<-20).length;
+    let expelScore=0;
+    if(warWithMember>0) expelScore+=45;
+    if(angryMembers>=2) expelScore+=angryMembers*10;
+    if(AI().filter(c=>c.relation==='military_war').length>=2) expelScore+=20;
+    if(G.approval<30) expelScore+=15;
+    const expelPct=Math.min(100,expelScore);
+    const expelColor=expelPct>=65?'var(--re)':expelPct>=40?'var(--wa)':'var(--gr)';
     el.innerHTML=`
       <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap">
         <div style="background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.2);border-radius:8px;padding:8px 14px;font-size:12px">
           <div style="color:#ffd700;font-weight:700">🌐 세계정부 회원국</div>
           <div style="color:var(--mu);margin-top:2px">${wg.seat?'🏆 의장국':'일반 회원'} · 분담금 100억/분기</div>
         </div>
-        <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);border-radius:8px;padding:8px 14px;font-size:12px">
+        <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);border-radius:8px;padding:8px 14px;font-size:12px;flex:1">
           <div style="color:var(--ac);font-weight:700">회원국 현황</div>
           <div class="wg-members" style="margin:4px 0 0">${[{flag:P().flag,name:P().name,self:true},...allMembers].map(c=>`<div class="wg-member-tag ${c.self?'self':''}">${c.flag} ${c.name}</div>`).join('')}</div>
         </div>
       </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">⚠️ 추방 위험도</div>
+        <div style="height:6px;background:var(--bd);border-radius:3px;margin-bottom:4px"><div style="height:6px;border-radius:3px;width:${expelPct}%;background:${expelColor};transition:width .5s"></div></div>
+        <div style="font-size:11px;color:${expelColor}">${expelPct>=65?'🔴 추방 결의 가능 — 즉각 조치 필요!':expelPct>=40?'🟡 경고 수준 — 국제 관계 개선 권고':'🟢 안전'} (${expelPct}%)</div>
+      </div>
+      <div style="margin-bottom:10px"><div style="font-size:10px;color:var(--mu);margin-bottom:5px;text-transform:uppercase;letter-spacing:.8px">🤝 AI 동맹 현황</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">${aiAllianceHTML}</div></div>
       <div class="wg-res">
         <b style="color:var(--go)">📜 결의안 제출</b><span style="font-size:10px;color:var(--mu);margin-left:8px">${resCd>0?`(${resCd}턴 쿨다운)`:'즉시 가능'}</span><br>
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -3785,8 +3872,39 @@ function renderWGPanel(){
   }
 }
 
+function checkWGExpulsion(){
+  if(!G.wg||!G.wg.member) return;
+  const wgMembers=AI().filter(c=>c.wgMember);
+  if(wgMembers.length<2) return;
+  const warWithMember=AI().filter(c=>c.wgMember&&c.relation==='military_war').length;
+  const angryMembers=AI().filter(c=>c.wgMember&&c.mood<-20).length;
+  const totalWars=AI().filter(c=>c.relation==='military_war').length;
+  let score=0;
+  if(warWithMember>0) score+=45;
+  if(angryMembers>=2) score+=angryMembers*10;
+  if(totalWars>=2) score+=20;
+  if(G.approval<30) score+=15;
+  if(score>=65&&Math.random()<0.30){
+    G.wg.member=false; G.wgBanTurns=5;
+    G.approval=Math.max(0,G.approval-15);
+    wgMembers.forEach(c=>c.mood=Math.max(-100,c.mood-10));
+    const lead=wgMembers.sort((a,b)=>b.gdp-a.gdp)[0];
+    G.evLog.unshift({text:`🚨 세계정부 긴급 총회 — ${lead.flag}${lead.name} 주도 추방 결의 통과! 재가입 쿨다운 5분기`,type:'bad',turn:G.turn});
+    logDiplo(`🚨 세계정부에서 추방됨! (재가입 불가 5분기)`,'bad');
+    toast(`🚨 세계정부에서 추방되었습니다!`,'bad');
+    renderAll();
+  } else if(score>=40&&Math.random()<0.35&&!G.pendingProposals.find(p=>p.type==='wg_warning')){
+    const lead=wgMembers.sort((a,b)=>b.gdp-a.gdp)[0];
+    G.pendingProposals.push({type:'wg_warning',cid:lead.id,turn:G.turn,
+      msg:`세계정부 회원국들이 귀국의 행동에 강력 항의 중입니다. 계속될 경우 추방 결의가 발의됩니다.`});
+    logDiplo(`⚠️ ${lead.flag}${lead.name} 추방 결의 발의 검토 경고`,'warn');
+    toast(`⚠️ 세계정부 추방 경고!`,'warn');
+  }
+}
+
 function joinWorldGov(){
   const p=P();
+  if(G.wgBanTurns>0){toast(`추방 이후 재가입 쿨다운: ${G.wgBanTurns}분기 남음`,'bad');return;}
   if(p.bud<300){toast('가입비 300억 부족','bad');return;}
   p.bud-=300;
   G.wg.member=true;
