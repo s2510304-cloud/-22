@@ -1757,12 +1757,12 @@ function applyWarEffects(){
     // 전투 명령 실행 (턴 시작 시)
     if(G.warOrders[c.id]){executeWarOrder(c.id);}
     c.warTurns=(c.warTurns||0)+1;
-    // 양측 경제 피해
-    p.gro-=2.5+Math.random()*2;
-    p.bud-=200+Math.random()*100;
+    // 양측 기본 경제 피해 (강화)
+    p.gro-=3+Math.random()*2;
+    p.bud-=250+Math.random()*150;
     c.gro-=1.5+Math.random()*2;
     c.bud-=120+Math.random()*80;
-    G.approval=Math.max(0,G.approval-6-Math.random()*4);
+    G.approval=Math.max(0,G.approval-7-Math.random()*5);
     // 전투 이벤트
     if(Math.random()<0.55){
       const pStr=p.mil/(p.mil+c.mil)*0.8+p.gdp/(p.gdp+c.gdp)*0.2;
@@ -1774,6 +1774,51 @@ function applyWarEffects(){
       G.evLog.unshift({...ev,text:`[${c.flag}전쟁] ${ev.text}`,turn:G.turn});
       p.gro+=ev.gfx||0; G.approval=Math.max(0,Math.min(100,G.approval+(ev.afk||0))); p.bud+=(ev.bfx||0);
     }
+    // ── 추가 전쟁 이벤트 ──────────────────────────────
+    // 1) 적 침입 — 적 군사력이 강할수록 확률↑
+    if(c.warTurns>=1&&Math.random()<0.4+(c.mil>p.mil?0.2:0)){
+      const _dmgBud=Math.round(150+Math.random()*250);
+      const _dmgGro=+(0.8+Math.random()*1.2).toFixed(1);
+      const _dmgApp=Math.round(3+Math.random()*5);
+      p.bud=Math.max(-9999,p.bud-_dmgBud);
+      p.gro-=_dmgGro;
+      G.approval=Math.max(0,G.approval-_dmgApp);
+      G.evLog.unshift({text:`🔴 ${c.flag} ${c.name} 병력 국경 침범! 시설 파괴 — 예산 -${_dmgBud}억, 성장률 -${_dmgGro}%, 민심 -${_dmgApp}`,type:'bad',turn:G.turn});
+    }
+    // 2) 난민 발생 — 2턴 이상 전쟁 시 35% 확률
+    if(c.warTurns>=2&&Math.random()<0.35){
+      const _refUnemp=+(0.5+Math.random()*2).toFixed(1);
+      const _refApp=Math.round(3+Math.random()*4);
+      p.unemp=Math.min(30,p.unemp+_refUnemp);
+      G.approval=Math.max(0,G.approval-_refApp);
+      p.gro-=0.5;
+      G.evLog.unshift({text:`🏚️ 전쟁 난민 대거 발생 — 실업률 +${_refUnemp}%, 민심 -${_refApp}`,type:'bad',turn:G.turn});
+    }
+    // 3) 무역로 봉쇄 — 2턴 이상 전쟁 시 30% 확률
+    if(c.warTurns>=2&&Math.random()<0.30){
+      const _blockBud=Math.round(80+Math.random()*120);
+      p.bud=Math.max(-9999,p.bud-_blockBud);
+      p.bal-=20+Math.random()*30;
+      G.evLog.unshift({text:`🚢 ${c.flag} 무역로 봉쇄! 수출입 전면 차질 — 예산 -${_blockBud}억, 무역수지 악화`,type:'bad',turn:G.turn});
+    }
+    // 4) 국내 반전 시위 — 민심 40% 미만 시 30% 확률
+    if(G.approval<40&&Math.random()<0.30){
+      const _riotBud=Math.round(80+Math.random()*120);
+      const _riotApp=Math.round(3+Math.random()*4);
+      p.bud=Math.max(-9999,p.bud-_riotBud);
+      G.approval=Math.max(0,G.approval-_riotApp);
+      G.evLog.unshift({text:`🔥 반전 시위 격화 — 시위 진압 비용 -${_riotBud}억, 민심 -${_riotApp}`,type:'bad',turn:G.turn});
+    }
+    // 5) 기습 공격 — 3턴 이상 전쟁 + 적 군사력 우위 시 20% 확률
+    if(c.warTurns>=3&&c.mil>p.mil*0.8&&Math.random()<0.20){
+      const _atkBud=Math.round(200+Math.random()*300);
+      const _atkMil=Math.round(5+Math.random()*10);
+      p.bud=Math.max(-9999,p.bud-_atkBud);
+      p.mil=Math.max(1,p.mil-_atkMil);
+      G.approval=Math.max(0,G.approval-6);
+      G.evLog.unshift({text:`💥 ${c.flag} ${c.name} 기습 공격! 군사시설 대규모 파괴 — 군사력 -${_atkMil}, 예산 -${_atkBud}억, 민심 -6`,type:'bad',turn:G.turn});
+    }
+    // ─────────────────────────────────────────────────
     // 승리 조건: 전쟁 3턴 이상 + GDP 격차
     if(c.warTurns>=3&&(p.mil>c.mil*1.3||p.gdp>c.gdp*1.5)&&Math.random()<0.5){
       c.relation='neutral'; c.tariff=20; c.mood=-80;
@@ -2315,9 +2360,13 @@ function declareMilWar(cid){
     c.relation='military_war';c.warTurns=0;c.mood=-100;
     addReaction(c,'military_war_declared');
     logDiplo(`⚔️ ${c.flag} ${c.name}에 군사전쟁 선포!`,'bad');
-    G.evLog.unshift({text:`🚨 ${c.flag} ${c.name}에 전쟁 선포!`,type:'bad',turn:G.turn});
-    G.approval=Math.max(0,G.approval-10);
-    AI().filter(x=>x.id!==cid).forEach(x=>{x.mood-=15;if(Math.random()<0.4)addReaction(x,'sanction');});
+    // 선전포고 즉시 패널티 강화
+    const _mobCost=300+Math.round(Math.random()*150);
+    P().bud=Math.max(-9999,P().bud-_mobCost);
+    G.approval=Math.max(0,G.approval-15);
+    G.evLog.unshift({text:`🚨 ${c.flag} ${c.name}에 전쟁 선포! 전쟁 동원령 발동 — 예산 -${_mobCost}억, 민심 -15`,type:'bad',turn:G.turn});
+    G.evLog.unshift({text:`📢 국제사회 규탄 — 주변국 외교 관계 악화, 경제 제재 위협`,type:'bad',turn:G.turn});
+    AI().filter(x=>x.id!==cid).forEach(x=>{x.mood-=20;if(Math.random()<0.55)addReaction(x,'sanction');});
     checkCoalition(cid);
     toast(`⚔️ ${c.flag} ${c.name}에 선전포고!`,'bad');
     if(MP.enabled){
