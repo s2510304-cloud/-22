@@ -218,18 +218,6 @@ button{cursor:pointer;}
 #srank-refresh{background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:6px;color:rgba(255,255,255,.35);font-size:12px;padding:2px 8px;cursor:pointer;margin-left:auto;transition:all .2s;}
 #srank-refresh:hover{border-color:rgba(108,99,255,.6);color:rgba(108,99,255,.9);}
 @media(max-width:680px){#splash-layout{flex-direction:column;gap:20px;}#globe-canvas{width:160px;height:160px;}#splash-ranks-list{grid-template-columns:1fr;}}
-/* SUKUNA */
-#sukuna-widget{position:absolute;top:18px;right:22px;z-index:2;pointer-events:none;animation:sukuna-in 1.2s ease 1s both;}
-.sukuna-inner{position:relative;width:118px;background:linear-gradient(160deg,rgba(10,3,3,.96),rgba(18,4,4,.92));border:1px solid rgba(160,0,0,.38);border-radius:12px;padding:16px 12px 12px;text-align:center;overflow:hidden;box-shadow:0 0 30px rgba(160,0,0,.14),inset 0 0 22px rgba(0,0,0,.55);}
-.sukuna-inner::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(160,0,0,.17) 0%,transparent 68%);pointer-events:none;}
-.sukuna-kanji{font-size:54px;line-height:1;color:#b80d20;display:block;font-weight:900;animation:sukuna-pulse 2.6s ease-in-out infinite;text-shadow:0 0 14px rgba(190,15,35,.55);}
-.sukuna-sep{width:34px;height:1px;background:linear-gradient(90deg,transparent,rgba(150,15,15,.7),transparent);margin:8px auto;}
-.sukuna-name-jp{font-size:10px;letter-spacing:2.5px;color:rgba(200,50,50,.88);display:block;}
-.sukuna-name-kr{font-size:9px;color:rgba(255,255,255,.26);letter-spacing:1.5px;display:block;margin-top:3px;}
-.sukuna-tag{font-size:8px;color:rgba(140,15,15,.65);letter-spacing:1px;margin-top:6px;display:block;}
-@keyframes sukuna-pulse{0%,100%{text-shadow:0 0 10px rgba(190,15,35,.45);}50%{text-shadow:0 0 24px rgba(220,20,45,1),0 0 44px rgba(190,15,35,.4);}}
-@keyframes sukuna-in{from{opacity:0;transform:translateX(22px) scale(.94);}to{opacity:1;transform:translateX(0) scale(1);}}
-@media(max-width:680px){#sukuna-widget{display:none;}}
 /* SELECT */
 #sel{position:fixed;inset:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:22px;}
 #sel h1{font-size:36px;font-weight:800;color:var(--ac);margin-bottom:4px;}
@@ -460,16 +448,6 @@ button{cursor:pointer;}
       </div>
       <button id="splash-btn" onclick="enterSel()">게임 시작 →</button>
       <div id="splash-ver">v1.0 · EcoNation</div>
-    </div>
-  </div>
-  <!-- 료멘스쿠나 -->
-  <div id="sukuna-widget">
-    <div class="sukuna-inner">
-      <span class="sukuna-kanji">呪</span>
-      <div class="sukuna-sep"></div>
-      <span class="sukuna-name-jp">両面宿儺</span>
-      <span class="sukuna-name-kr">료멘스쿠나</span>
-      <span class="sukuna-tag">呪術廻戦</span>
     </div>
   </div>
   <div id="splash-ranks-section">
