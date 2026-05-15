@@ -218,6 +218,18 @@ button{cursor:pointer;}
 #srank-refresh{background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:6px;color:rgba(255,255,255,.35);font-size:12px;padding:2px 8px;cursor:pointer;margin-left:auto;transition:all .2s;}
 #srank-refresh:hover{border-color:rgba(108,99,255,.6);color:rgba(108,99,255,.9);}
 @media(max-width:680px){#splash-layout{flex-direction:column;gap:20px;}#globe-canvas{width:160px;height:160px;}#splash-ranks-list{grid-template-columns:1fr;}}
+/* SUKUNA */
+#sukuna-widget{position:absolute;top:18px;right:22px;z-index:2;pointer-events:none;animation:sukuna-in 1.2s ease 1s both;}
+.sukuna-inner{position:relative;width:118px;background:linear-gradient(160deg,rgba(10,3,3,.96),rgba(18,4,4,.92));border:1px solid rgba(160,0,0,.38);border-radius:12px;padding:16px 12px 12px;text-align:center;overflow:hidden;box-shadow:0 0 30px rgba(160,0,0,.14),inset 0 0 22px rgba(0,0,0,.55);}
+.sukuna-inner::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(160,0,0,.17) 0%,transparent 68%);pointer-events:none;}
+.sukuna-kanji{font-size:54px;line-height:1;color:#b80d20;display:block;font-weight:900;animation:sukuna-pulse 2.6s ease-in-out infinite;text-shadow:0 0 14px rgba(190,15,35,.55);}
+.sukuna-sep{width:34px;height:1px;background:linear-gradient(90deg,transparent,rgba(150,15,15,.7),transparent);margin:8px auto;}
+.sukuna-name-jp{font-size:10px;letter-spacing:2.5px;color:rgba(200,50,50,.88);display:block;}
+.sukuna-name-kr{font-size:9px;color:rgba(255,255,255,.26);letter-spacing:1.5px;display:block;margin-top:3px;}
+.sukuna-tag{font-size:8px;color:rgba(140,15,15,.65);letter-spacing:1px;margin-top:6px;display:block;}
+@keyframes sukuna-pulse{0%,100%{text-shadow:0 0 10px rgba(190,15,35,.45);}50%{text-shadow:0 0 24px rgba(220,20,45,1),0 0 44px rgba(190,15,35,.4);}}
+@keyframes sukuna-in{from{opacity:0;transform:translateX(22px) scale(.94);}to{opacity:1;transform:translateX(0) scale(1);}}
+@media(max-width:680px){#sukuna-widget{display:none;}}
 /* SELECT */
 #sel{position:fixed;inset:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:22px;}
 #sel h1{font-size:36px;font-weight:800;color:var(--ac);margin-bottom:4px;}
@@ -448,6 +460,16 @@ button{cursor:pointer;}
       </div>
       <button id="splash-btn" onclick="enterSel()">게임 시작 →</button>
       <div id="splash-ver">v1.0 · EcoNation</div>
+    </div>
+  </div>
+  <!-- 료멘스쿠나 -->
+  <div id="sukuna-widget">
+    <div class="sukuna-inner">
+      <span class="sukuna-kanji">呪</span>
+      <div class="sukuna-sep"></div>
+      <span class="sukuna-name-jp">両面宿儺</span>
+      <span class="sukuna-name-kr">료멘스쿠나</span>
+      <span class="sukuna-tag">呪術廻戦</span>
     </div>
   </div>
   <div id="splash-ranks-section">
@@ -1846,12 +1868,12 @@ function nextQ(){
   p.gro=Math.max(-5,Math.min(20,p.gro));
   p.gdp=Math.max(100,p.gdp*(1+p.gro/100));
   p.bal+=(G.totExp-G.totImp)/10;
-  // 무역 수익: 매 턴 재정 반영
-  const _expRev = Math.round(G.totExp * 3);   // 수출 총액의 3% 마진
-  const _impCost = Math.round(G.totImp * 4);  // 수입 총액의 4% 관세·물류비
-  const _ftaBonus = AI().filter(c=>c.relation==='deal').length * 18;
-  const _allianceBonus = AI().filter(c=>c.relation==='alliance').length * 35; // 동맹 1개국당 +35억
-  const _wgCost = G.wg&&G.wg.member ? 100 : 0; // 세계정부 분담금
+  // 무역 수익 (보조 수입): 실거래 마진 + 외교 관계 보너스
+  const _expRev = Math.round(G.totExp * 1.5);  // 수출 마진 1.5%
+  const _impCost = Math.round(G.totImp * 1.5); // 수입 비용 1.5%
+  const _ftaBonus = AI().filter(c=>c.relation==='deal').length * 5;       // FTA 1개국 +5억
+  const _allianceBonus = AI().filter(c=>c.relation==='alliance').length * 10; // 동맹 1개국 +10억
+  const _wgCost = G.wg&&G.wg.member ? 100 : 0;
   const _tradeNet = _expRev - _impCost + _ftaBonus + _allianceBonus - _wgCost;
   if(_tradeNet!==0){
     p.bud=Math.max(0,p.bud+_tradeNet);
@@ -1861,7 +1883,7 @@ function nextQ(){
     if(_ftaBonus>0) _parts.push(`FTA +${_ftaBonus}억`);
     if(_allianceBonus>0) _parts.push(`동맹 +${_allianceBonus}억`);
     if(_wgCost>0) _parts.push(`세계정부 -${_wgCost}억`);
-    G.evLog.unshift({text:`📦 무역수익 ${_parts.join(' | ')} → 순 ${_tradeNet>=0?'+':''}${_tradeNet}억`,type:_tradeNet>=0?'good':'bad',turn:G.turn});
+    G.evLog.unshift({text:`📦 무역수익(보조) ${_parts.join(' | ')} → 순 ${_tradeNet>=0?'+':''}${_tradeNet}억`,type:_tradeNet>=0?'good':'bad',turn:G.turn});
   }
   // 세계정부 효과
   if(G.wg&&G.wg.member){
@@ -1880,10 +1902,15 @@ function nextQ(){
   }
   G.totExp=0; G.totImp=0; G.tradeBought={}; G.tradeSold={};
 
-  // 세금 수입 (GDP의 2% · 실업률 보정)
-  const _taxIncome=Math.round(p.gdp*0.02*Math.max(0.3,1-p.unemp*0.04));
-  p.bud+=_taxIncome;
-  G.evLog.unshift({text:`💰 세금 수입 +$${_taxIncome}억 (GDP ${fG(p.gdp)} 기준)`,type:'good',turn:G.turn});
+  // 세금 수입 (주 수입원) — 소득세·법인세·부가가치세 세분화
+  const _empFactor = Math.max(0.3, 1 - p.unemp * 0.04);          // 고용률 보정
+  const _groFactor = Math.max(0.1, Math.min(2.0, 0.5 + p.gro/8)); // 성장률 보정
+  const _incomeTax = Math.round(p.gdp * 0.020 * _empFactor);  // 소득세 (주 세원)
+  const _corpTax   = Math.round(p.gdp * 0.010 * _groFactor);  // 법인세 (성장할수록 ↑)
+  const _vat       = Math.round(p.gdp * 0.006);               // 부가가치세 (경기 무관)
+  const _taxIncome = _incomeTax + _corpTax + _vat;
+  p.bud += _taxIncome;
+  G.evLog.unshift({text:`💰 세금수입 +$${_taxIncome}억 | 소득세 +${_incomeTax}억 · 법인세 +${_corpTax}억 · 부가세 +${_vat}억`,type:'good',turn:G.turn});
 
   // 산업 인프라 자원 자동 생산
   const _prodItems=[];
@@ -3267,10 +3294,29 @@ function renderLB(){
 function renderMySummary(){
   const p=P(),rank=[...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.isPlayer)+1;
   const mwars=AI().filter(c=>c.relation==='military_war').length;
+  // 다음 분기 세금 예상
+  const _ef=Math.max(0.3,1-p.unemp*0.04);
+  const _gf=Math.max(0.1,Math.min(2.0,0.5+p.gro/8));
+  const _inc=Math.round(p.gdp*0.020*_ef);
+  const _corp=Math.round(p.gdp*0.010*_gf);
+  const _vat=Math.round(p.gdp*0.006);
+  const _taxEst=_inc+_corp+_vat;
+  // 무역 보너스 예상
+  const _ftaN=AI().filter(c=>c.relation==='deal').length;
+  const _allyN=AI().filter(c=>c.relation==='alliance').length;
+  const _tradeEst=_ftaN*5+_allyN*10-(G.wg&&G.wg.member?100:0);
   document.getElementById('mysum').innerHTML=`<div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">현재 순위</span><strong style="color:var(--go)">${rank}위 / ${G.countries.length}개국</strong></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">남은 분기</span><strong>${G.infiniteMode?'<span style="color:var(--go)">♾️ 무한</span>':`${G.maxTurns-G.turn}분기`}</strong></div>
-    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">FTA 국가</span><strong style="color:var(--gr)">${AI().filter(c=>c.relation==='deal').length}개국</strong></div>
+    <div style="border-top:1px solid var(--bd);margin:2px 0"></div>
+    <div style="font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px">💰 다음 분기 세금 예상</div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">├ 소득세</span><span style="color:var(--gr)">+${_inc}억</span></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">├ 법인세</span><span style="color:var(--gr)">+${_corp}억</span></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">└ 부가가치세</span><span style="color:var(--gr)">+${_vat}억</span></div>
+    <div style="display:flex;justify-content:space-between"><strong style="color:var(--mu)">세금 합계</strong><strong style="color:var(--go)">+${_taxEst}억</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">무역 보너스(보조)</span><span style="color:${_tradeEst>=0?'var(--gr)':'var(--re)'}">${_tradeEst>=0?'+':''}${_tradeEst}억</span></div>
+    <div style="border-top:1px solid var(--bd);margin:2px 0"></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">FTA 국가</span><strong style="color:var(--gr)">${_ftaN}개국</strong></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">관세전쟁</span><strong style="color:var(--wa)">${AI().filter(c=>c.relation==='tariff_war').length}개국</strong></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">군사전쟁</span><strong style="color:var(--re)">${mwars}개국${mwars>0?' ⚔️':''}</strong></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">시민 지지율</span><strong style="color:${appLvl(G.approval).color}">${G.approval}%</strong></div>
@@ -3704,7 +3750,7 @@ const TUT_STEPS=[
    body:'우측 상단의 <b>시민 지지율</b>을 항상 확인하세요. 지지율이 <b>10% 이하</b>가 되면 탄핵으로 게임 오버! <b>42% 이하</b>에서 경제 위기가 겹치면 내전이 발생할 수 있습니다.',
    hi:'app-hud'},
   {title:'💰 재정(예산)을 지켜라',
-   body:'<b>재정</b>이 바닥나면 정책도 못 쓰고 전쟁도 못 합니다. 세금 정책, 무역 수출, FTA 체결로 매 턴 수입을 늘리세요. 우측 상단에서 현재 재정을 확인할 수 있습니다.',
+   body:'<b>재정</b>이 바닥나면 정책도 못 쓰고 전쟁도 못 합니다. 주 수입원은 <b>세금(소득세·법인세·부가가치세)</b>으로 GDP에 비례해 매 분기 자동 징수됩니다. FTA·동맹은 소소한 <b>보조 수입</b>을 더해줍니다. 경제를 키울수록 세수가 늘어납니다.',
    hi:'hb'},
   {title:'🏛️ 정책 카드로 나라 운영',
    body:'대시보드의 <b>정책 카드</b>를 클릭해서 국가를 운영합니다. 매 턴 <b>정책 포인트(PP) 2개</b>가 지급됩니다. 금리 인상·세금 조정·복지 확대·군비 증강 등을 상황에 맞게 골라 쓰세요.',
@@ -3757,11 +3803,9 @@ function endTutorial(){
   document.getElementById('tut-overlay').classList.remove('active');
 }
 
-// ══ 랭킹 시스템 (Firebase Realtime Database) ══════════
-// Firebase 콘솔 → Realtime Database URL을 아래에 입력하세요
-// 예: 'https://your-app-default-rtdb.firebaseio.com'
-const FB_URL='https://econation-ranking-default-rtdb.firebaseio.com';
+// ══ 랭킹 시스템 (Firebase Realtime Database — 멀티플레이 DB 공유) ══════════
 const RANKS_KEY='econation_v1_ranks'; // 로컬 폴백용
+const RANKS_PATH='globalRanks';       // Firebase 경로
 let _playerName='플레이어';
 let _cachedRanks=[];
 
@@ -3775,13 +3819,13 @@ function calcScore(){
 
 async function fetchGlobalRanks(){
   try{
-    const r=await fetch(`${FB_URL}/ranks.json`);
-    const data=await r.json();
+    if(!db) throw new Error('db not ready');
+    const snap=await db.ref(RANKS_PATH).orderByChild('score').limitToLast(20).once('value');
+    const data=snap.val();
     if(!data)return[];
     return Object.entries(data)
       .map(([k,v])=>({...v,_key:k}))
-      .sort((a,b)=>b.score-a.score)
-      .slice(0,20);
+      .sort((a,b)=>b.score-a.score);
   }catch{
     try{return JSON.parse(localStorage.getItem(RANKS_KEY))||[];}catch{return[];}
   }
@@ -3789,27 +3833,29 @@ async function fetchGlobalRanks(){
 
 async function pushGlobalRank(entry){
   try{
-    await fetch(`${FB_URL}/ranks.json`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(entry)
-    });
+    if(!db) throw new Error('db not ready');
+    await db.ref(RANKS_PATH).push(entry);
   }catch{
     // 로컬 폴백
+  }
+  // 로컬 캐시에도 저장
+  try{
     const ranks=JSON.parse(localStorage.getItem(RANKS_KEY)||'[]');
     ranks.push(entry);ranks.sort((a,b)=>b.score-a.score);ranks.splice(20);
     localStorage.setItem(RANKS_KEY,JSON.stringify(ranks));
-  }
+  }catch{}
 }
 
 async function saveScore(result){
   const score=calcScore();
   const p=P();
+  const displayName=(MP.enabled&&MP.playerName)||_playerName||'익명';
   const entry={
-    name:_playerName||'익명',score,
+    name:displayName,score,
     country:`${p.flag} ${p.name}`,
-    mode:G.infiniteMode?'무한':'일반',
+    mode:MP.enabled?'멀티':G.infiniteMode?'무한':'일반',
     turns:G.turn,gdp:Math.round(p.gdp),
+    approval:G.approval,
     result,date:new Date().toLocaleDateString('ko-KR'),
     ts:Date.now()
   };
@@ -3835,15 +3881,18 @@ async function renderSplashRanks(){
     return;
   }
   const medals=['gold','silver','bronze'];
-  list.innerHTML=ranks.slice(0,10).map((r,i)=>`
-    <div class="srank-row${i<3?' srank-top':''}">
+  list.innerHTML=ranks.slice(0,20).map((r,i)=>{
+    const modeColor=r.mode==='멀티'?'#4af':r.mode==='무한'?'#f84':'rgba(255,255,255,.4)';
+    const approvalStr=r.approval!=null?` · 지지율 ${r.approval}%`:'';
+    return `<div class="srank-row${i<3?' srank-top':''}">
       <div class="srank-pos ${medals[i]||'other'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
       <div class="srank-info">
-        <div class="srank-name">${r.name}</div>
-        <div class="srank-detail">${r.country} · ${r.mode}모드 · ${r.turns}턴 · ${r.date}</div>
+        <div class="srank-name">${r.name.replace(/[<>&"]/g,'')}</div>
+        <div class="srank-detail">${r.country} · <span style="color:${modeColor}">${r.mode}모드</span> · ${r.turns}턴${approvalStr} · ${r.date}</div>
       </div>
       <div class="srank-score">${Number(r.score).toLocaleString()}<span style="font-size:9px;color:rgba(255,215,0,.5)">pt</span></div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function toggleTheme(){
   document.body.classList.toggle('light');
@@ -3966,7 +4015,7 @@ const MP = {
 };
 
 buildSel();
-renderSplashRanks();
+// renderSplashRanks()는 Firebase 초기화 완료 후 호출 (아래 Firebase 초기화 블록 참조)
 
 // ══════════════════════════════════════════════════════
 //  FIREBASE 초기화 & 멀티플레이
@@ -3999,6 +4048,8 @@ try {
 } catch(e) {
   console.warn('Firebase 초기화 실패:', e);
 }
+// Firebase 초기화 완료 후 글로벌 랭킹 로드
+renderSplashRanks();
 
 // MP 및 _mpAdvancingTurn은 buildSel() 이전으로 이동됨 (위 참조)
 
@@ -4716,20 +4767,48 @@ function mpApplyGameState(state) {
   if (state.turn && state.turn > prevTurn) {
     G.turn = state.turn;
     G.pp = 2;
+    const p = P();
+    if (p) {
+      // 무역 수익 (보조): 리셋 전에 먼저 적용
+      const _expRev = Math.round(G.totExp * 1.5);
+      const _impCost = Math.round(G.totImp * 1.5);
+      const _ftaBonus = AI().filter(c => c.relation === 'deal').length * 5;
+      const _allianceBonus = AI().filter(c => c.relation === 'alliance').length * 10;
+      const _wgCost = G.wg && G.wg.member ? 100 : 0;
+      const _tradeNet = _expRev - _impCost + _ftaBonus + _allianceBonus - _wgCost;
+      if (_tradeNet !== 0) p.bud = Math.max(0, p.bud + _tradeNet);
+      p.bal += (G.totExp - G.totImp) / 10;
+    }
     G.tradeBought = {};
     G.tradeSold = {};
     G.totExp = 0;
     G.totImp = 0;
-    // 내 나라 기본 경제 성장 적용
-    const p = P();
     if (p) {
+      // 기본 경제 성장 적용
       p.gro = Math.max(-5, Math.min(20, p.gro));
       p.gdp = Math.max(100, p.gdp * (1 + p.gro / 100));
       p.debt = Math.min(300, p.debt + Math.random() * 0.3);
-      // 세금 수입
-      const tax = Math.round(p.gdp * 0.02 * Math.max(0.3, 1 - p.unemp * 0.04));
+      // 세금 수입 세분화 (주 수입원)
+      const _empFactor = Math.max(0.3, 1 - p.unemp * 0.04);
+      const _groFactor = Math.max(0.1, Math.min(2.0, 0.5 + p.gro / 8));
+      const tax = Math.round(p.gdp * 0.020 * _empFactor)
+                + Math.round(p.gdp * 0.010 * _groFactor)
+                + Math.round(p.gdp * 0.006);
       p.bud += tax;
+      // 자원 자동 생산 (기술 인프라)
+      TECH_TREE.filter(t => t.produce && G.techsOwned.has(t.id)).forEach(t => {
+        Object.entries(t.produce).forEach(([gid, amt]) => {
+          G.inv[gid] = (G.inv[gid] || 0) + amt;
+          const pf = G.portfolio[gid] || {qty: 0, totalCost: 0};
+          pf.qty += amt;
+          G.portfolio[gid] = pf;
+        });
+      });
     }
+    // 분기 표시 업데이트 (클라이언트에서 qb가 업데이트되지 않던 버그 수정)
+    const qLabel = `Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)}`;
+    const maxLabel = G.infiniteMode ? '∞' : `${G.maxTurns}분기`;
+    document.getElementById('qb').textContent = `${qLabel} / ${maxLabel}`;
     // 분기 증가 후 내 스텟 동기화
     setTimeout(() => { if (MP.enabled && !MP.isHost) mpSyncMyStats(); }, 500);
   } else {
@@ -5069,6 +5148,39 @@ function leaveRoom() {
     requestAnimationFrame(draw);
   }
   draw();
+})();
+
+// ── 자동 업데이트 (5분 주기 체크) ───────────────────────────
+(function() {
+  let _knownTag = null;
+
+  async function checkUpdate() {
+    try {
+      const res = await fetch(location.pathname + '?_chk=' + Date.now(), {
+        method: 'HEAD',
+        cache: 'no-store'
+      });
+      const tag = res.headers.get('ETag') || res.headers.get('Last-Modified');
+      if (!tag) return;
+      if (_knownTag === null) { _knownTag = tag; return; }
+      if (tag !== _knownTag) {
+        toast('🔄 새 버전이 있습니다. 업데이트합니다...', 'info');
+        setTimeout(() => location.reload(true), 2000);
+      }
+    } catch {}
+  }
+
+  // 로드 3초 후 기준값 저장, 이후 10초마다 변경 감지
+  setTimeout(() => {
+    checkUpdate();
+    setInterval(checkUpdate, 10 * 1000);
+  }, 3000);
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
 })();
 </script>
 </body>
