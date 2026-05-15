@@ -1929,7 +1929,8 @@ function nextQ(){
     return;
   }
   if(G.turn>=G.maxTurns){endGame('turns');return;}
-  G.turn++; G.pp=2;
+  G.turn++; G.pp=Math.min(6,G.pp+2);
+  G.evLog.unshift({text:`🎯 정책 포인트 +2 지급 (보유: ${Math.min(6,G.pp)}PP)`,type:'good',turn:G.turn});
 
   // 경제 이벤트
   if(Math.random()<.6){
@@ -5117,7 +5118,7 @@ function mpApplyGameState(state) {
   // 분기가 증가했으면 → 클라이언트 개인 상태 리셋
   if (state.turn && state.turn > prevTurn) {
     G.turn = state.turn;
-    G.pp = 2;
+    G.pp = Math.min(6, G.pp + 2);
     const p = P();
     if (p) {
       // 무역 수익 (보조): 리셋 전에 먼저 적용
