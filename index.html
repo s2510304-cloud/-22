@@ -2063,7 +2063,12 @@ function nextQ(){
     c.infl=Math.max(0,Math.min(15,c.infl+(Math.random()-.5)*.3));
     c.bal+=(Math.random()-.4)*25; c.bud+=(Math.random()-.5)*50;
     c.debt+=Math.random()*.5;
-    c.mil=Math.max(1,Math.min(999,c.mil+(Math.random()*1.5)));
+    if(Math.random()<0.25){
+      const _milReasons=['첨단 무기 기술 도입','국방 예산 증액','병력 현대화','방위산업 투자','군사 훈련 강화','동맹 군비 지원'];
+      const _milGain=+(2+Math.random()*6).toFixed(1);
+      c.mil=Math.max(1,Math.min(999,c.mil+_milGain));
+      G.evLog.unshift({text:`🪖 ${c.flag} ${c.name} — ${_milReasons[Math.floor(Math.random()*_milReasons.length)]}으로 군사력 +${_milGain}`,type:'warn',turn:G.turn});
+    }
   });
 
   applyWarEffects();
