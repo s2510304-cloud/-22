@@ -2068,7 +2068,7 @@ function nextQ(){
   doTerror();
   doCivilWar(); if(G.gameOver&&!(MP.enabled&&MP.isHost))return;
   updateMarket();
-  if(G.spyBoost>0){G.spyBoost--;P().gro+=2.0;}
+  if(G.spyBoost>0){G.spyBoost--;P().gro=Math.min(20,P().gro+2.0);} // gro 상한(20) 초과 방지
   aiSpyAttack();
   aiActiveActions();
   recalcApproval();
@@ -2098,7 +2098,7 @@ function applyPol(pol){
   if(fx.bud !==undefined)p.bud +=fx.bud;
   if(fx.unemp!==undefined)p.unemp=Math.max(.5,p.unemp+fx.unemp);
   if(fx.bal !==undefined)p.bal +=fx.bal;
-  if(pol.milFx)p.mil=p.mil+pol.milFx;
+  if(pol.milFx)p.mil=Math.max(1,Math.min(999,p.mil+pol.milFx)); // 군사력 범위 1~999 보장
   if(pol.appFx)G.approval=Math.max(0,Math.min(100,G.approval+pol.appFx));
   // 타국 반응
   if(pol.reacts){
@@ -3493,11 +3493,13 @@ function renderLB(){
 }
 
 function renderMySummary(){
-  const p=P(),rank=[...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.isPlayer)+1;
+  // MP에서 다른 플레이어 국가도 isPlayer=true이므로 G.pid로 정확한 순위 계산
+  const p=P(),rank=[...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.id===G.pid)+1;
   const mwars=AI().filter(c=>c.relation==='military_war').length;
   const _ef=Math.max(0.3,1-p.unemp*0.04);
   const _gf=Math.max(0.1,Math.min(2.0,0.5+p.gro/8));
-  const _taxEst=Math.round(p.gdp*0.030*_ef)+Math.round(p.gdp*0.018*_gf)+Math.round(p.gdp*0.012)+Math.round(p.gdp*0.008)+Math.round(p.gdp*0.005);
+  const TR=G.taxRates||{income:1,corp:1,vat:1,prop:1,customs:1};
+  const _taxEst=Math.round(p.gdp*0.030*_ef*TR.income)+Math.round(p.gdp*0.018*_gf*TR.corp)+Math.round(p.gdp*0.012*TR.vat)+Math.round(p.gdp*0.008*TR.prop)+Math.round(p.gdp*0.005*TR.customs);
   const _ftaN=AI().filter(c=>c.relation==='deal').length;
   const _allyN=AI().filter(c=>c.relation==='alliance').length;
   const _tradeEst=_ftaN*5+_allyN*10-(G.wg&&G.wg.member?100:0);
@@ -3520,12 +3522,13 @@ function renderTaxPanel(){
   const el=document.getElementById('tax-panel'); if(!el) return;
   const _ef=Math.max(0.3,1-p.unemp*0.04);
   const _gf=Math.max(0.1,Math.min(2.0,0.5+p.gro/8));
+  const TR=G.taxRates||{income:1,corp:1,vat:1,prop:1,customs:1}; // 세율 반영
   const taxes=[
-    {ico:'👤',name:'소득세',      desc:`고용률 ${Math.round((1-p.unemp*0.04)*100)}% 반영`,   amt:Math.round(p.gdp*0.030*_ef), color:'#4ade80'},
-    {ico:'🏢',name:'법인세',      desc:`성장률 ${p.gro.toFixed(1)}% 반영`,                   amt:Math.round(p.gdp*0.018*_gf), color:'#60a5fa'},
-    {ico:'🛒',name:'부가가치세',  desc:'소비 기반 — GDP 비례 고정',                           amt:Math.round(p.gdp*0.012),     color:'#f59e0b'},
-    {ico:'🏠',name:'재산세',      desc:'자산 과세 — 안정적 세수',                             amt:Math.round(p.gdp*0.008),     color:'#a78bfa'},
-    {ico:'🚢',name:'관세',        desc:'수입품 과세 — 무역 연동',                             amt:Math.round(p.gdp*0.005),     color:'#fb923c'},
+    {ico:'👤',name:'소득세',      desc:`고용률 ${Math.round((1-p.unemp*0.04)*100)}% 반영`,   amt:Math.round(p.gdp*0.030*_ef*TR.income), color:'#4ade80'},
+    {ico:'🏢',name:'법인세',      desc:`성장률 ${p.gro.toFixed(1)}% 반영`,                   amt:Math.round(p.gdp*0.018*_gf*TR.corp),   color:'#60a5fa'},
+    {ico:'🛒',name:'부가가치세',  desc:'소비 기반 — GDP 비례 고정',                           amt:Math.round(p.gdp*0.012*TR.vat),        color:'#f59e0b'},
+    {ico:'🏠',name:'재산세',      desc:'자산 과세 — 안정적 세수',                             amt:Math.round(p.gdp*0.008*TR.prop),       color:'#a78bfa'},
+    {ico:'🚢',name:'관세',        desc:'수입품 과세 — 무역 연동',                             amt:Math.round(p.gdp*0.005*TR.customs),    color:'#fb923c'},
   ];
   const total=taxes.reduce((s,t)=>s+t.amt,0);
   el.innerHTML=taxes.map(t=>{
@@ -4911,6 +4914,8 @@ function mpPushGameState() {
     countries: {},
     evLog: G.evLog.slice(0, 20),
     diploLog: G.diploLog.slice(0, 10),
+    aiAlliances: G.aiAlliances || [],
+    wgBanTurns: G.wgBanTurns || 0,
   };
   G.countries.forEach(c => {
     snapshot.countries[c.id] = {
@@ -4920,6 +4925,7 @@ function mpPushGameState() {
       prices: c.prices,
       isPlayer: c.isPlayer || false, playerUid: c.playerUid || null,
       eliminated: c.eliminated || false,
+      wgMember: c.wgMember || false,
     };
   });
   db.ref('rooms/' + MP.roomCode + '/gameState').set(snapshot).catch(err => {
@@ -5148,7 +5154,7 @@ function mpApplyGameState(state) {
       if (c) {
         // 공유 필드만 덮어씀 (inv, portfolio, techsOwned 등 개인 데이터 제외)
         const shared = ['gdp','gro','mil','bud','debt','unemp','infl','bal',
-                        'mood','relation','warTurns','prices','isPlayer','playerUid','eliminated'];
+                        'mood','relation','warTurns','prices','isPlayer','playerUid','eliminated','wgMember'];
         shared.forEach(k => { if (data[k] !== undefined) c[k] = data[k]; });
       }
     });
@@ -5156,6 +5162,9 @@ function mpApplyGameState(state) {
 
   if (state.evLog) G.evLog = state.evLog;
   if (state.diploLog) G.diploLog = state.diploLog;
+  // AI 동맹·WG 추방 쿨다운 동기화 (클라이언트 WG 추방 체크에 필요)
+  if (state.aiAlliances) G.aiAlliances = state.aiAlliances;
+  if (state.wgBanTurns !== undefined) G.wgBanTurns = state.wgBanTurns;
 
   // 분기가 증가했으면 → 클라이언트 개인 상태 리셋
   if (state.turn && state.turn > prevTurn) {
@@ -5183,7 +5192,7 @@ function mpApplyGameState(state) {
       // 기본 경제 성장 적용
       p.gro = Math.max(-5, Math.min(20, p.gro));
       p.gdp = Math.max(100, p.gdp * (1 + p.gro / 100));
-      p.debt = Math.min(300, p.debt + Math.random() * 0.3);
+      p.debt = Math.max(0, Math.min(300, p.debt + Math.random() * 0.3));
       // 세금 수입 세분화 (주 수입원)
       const _empFactor = Math.max(0.3, 1 - p.unemp * 0.04);
       const _groFactor = Math.max(0.1, Math.min(2.0, 0.5 + p.gro / 8));
@@ -5208,11 +5217,18 @@ function mpApplyGameState(state) {
     const qLabel = `Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)}`;
     const maxLabel = G.infiniteMode ? '∞' : `${G.maxTurns}분기`;
     document.getElementById('qb').textContent = `${qLabel} / ${maxLabel}`;
-    // 클라이언트: 지지율 재계산 (nextQ가 클라이언트에서 실행 안 되므로 여기서 처리)
-    // recalcApproval()이 한 번도 호출 안 되면 지지율이 초기값 50에 고정돼 탄핵 조건이 트리거 안 됨
+    // 클라이언트: nextQ()가 실행 안 되므로 필요한 처리를 여기서 수행
     if (!MP.isHost && !G.gameOver && p) {
+      // WG 쿨다운 감소 (nextQ에서 호스트만 처리하므로 클라이언트도 동일하게)
+      if (G.wg && G.wg.resCooldown > 0) G.wg.resCooldown--;
+      // 지지율 재계산 (초기값 50에 고정되는 버그 수정)
       recalcApproval();
-      if (G.approval <= 10) { endGame('protest'); return; }
+      // 선거 체크 (nextQ에서만 실행되던 것 클라이언트에도 적용)
+      if (G.turn >= G.election.next && !G.gameOver) {
+        doElection();
+        if (G.gameOver) return;
+      }
+      if (G.approval <= 10 && !G.gameOver) { endGame('protest'); return; }
       if (G.approval <= 20) toast(`⚠️ 지지율 ${G.approval}%! 내전·탄핵 위기!`, 'warn');
     }
     // 분기 증가 후 내 스텟 동기화
