@@ -2063,6 +2063,7 @@ function nextQ(){
     c.infl=Math.max(0,Math.min(15,c.infl+(Math.random()-.5)*.3));
     c.bal+=(Math.random()-.4)*25; c.bud+=(Math.random()-.5)*50;
     c.debt+=Math.random()*.5;
+    c.mil=Math.max(1,Math.min(999,c.mil+(Math.random()*1.5)));
   });
 
   applyWarEffects();
