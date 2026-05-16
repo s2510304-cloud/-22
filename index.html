@@ -5117,6 +5117,8 @@ function mpEliminatePlayer(uid, countryId, reason) {
   G.evLog.unshift({ text: '💀 ' + pName + ' 탈락! (' + reason + ')', type: 'bad', turn: G.turn });
   toast('💀 ' + pName + ' 탈락!', 'bad');
   if (MP.enabled) { mpPushEvLog(); if (MP.isHost) mpPushGameState(); }
+  // 탈락 플레이어 자동 준비 — 나머지 플레이어가 다음 분기 진행할 수 있도록
+  db.ref('rooms/' + MP.roomCode + '/ready/' + uid).set(true).catch(()=>{});
   // 상대 플레이어에게 알림
   mpNotifyPlayer(uid, '💀 당신의 나라가 ' + reason + '으로 멸망했습니다. 게임에서 탈락합니다.');
 }
@@ -5129,11 +5131,19 @@ function listenNotifications() {
     if (!n) return;
     // 탈락 메시지 감지
     if (n.msg && n.msg.includes('멸망했습니다')) {
-      toast('💀 당신의 나라가 멸망했습니다! 관전 모드로 전환됩니다.', 'bad');
       MP._eliminated = true;
-      // 다음 분기 버튼 비활성화
+      G.gameOver = true;
+      const _ep = P();
+      if (_ep) _ep.eliminated = true;
+      const _eRank = [...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.id===G.pid)+1;
+      toast(`💀 암살로 탈락 — 관전 모드 전환. 순위: ${_eRank}위`, 'bad');
       const btn = document.getElementById('btn-nxt');
-      if (btn) { btn.disabled = true; btn.textContent = '💀 탈락'; btn.style.opacity = '0.4'; }
+      if (btn) { btn.disabled = true; btn.textContent = '💀 게임오버 (관전 중)'; btn.style.background = 'var(--re)'; btn.style.color = '#fff'; }
+      showDarkSouls({ mainText:'암살', subTitle:'당신의 지도자가 적에게 암살됐습니다', subName:'국가가 혼란에 빠집니다', subCountry:`순위 ${_eRank}위`, permanent:false });
+      // 자동 준비 — 탈락자가 다음 분기 진행을 막지 않도록
+      MP._myReady = true;
+      if (db && MP.roomCode && MP.uid) db.ref('rooms/' + MP.roomCode + '/ready/' + MP.uid).set(true).catch(()=>{});
+      renderAll();
     } else {
       toast('📨 ' + n.from + ': ' + n.msg, 'bad');
     }
@@ -5290,7 +5300,7 @@ function mpApplyGameState(state) {
     // 투자 쿨다운 감소 (클라이언트 독립)
     if (G.investCooldowns) Object.keys(G.investCooldowns).forEach(k => { if (G.investCooldowns[k] > 0) G.investCooldowns[k]--; });
     const _nqLabel = `Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)}`;
-    showNextQOverlay(_nqLabel, G.pp);
+    if (!G.gameOver) showNextQOverlay(_nqLabel, G.pp); // 탈락 클라이언트는 오버레이 생략
     const p = P();
     if (p) {
       // 무역 수익 (보조): 리셋 전에 먼저 적용
@@ -5418,8 +5428,8 @@ function updateReadyStatus(readyCount, totalCount, readyMap, players) {
   }
   if (!MP.enabled) { statusEl.style.display = 'none'; return; }
   const lines = Object.entries(players)
-    .filter(([uid, p]) => p.connected !== false)
-    .map(([uid, p]) => `${readyMap[uid] ? '✅' : '⏳'} ${p.name}`);
+    .filter(([uid, p]) => p.connected !== false && p.countryId)
+    .map(([uid, p]) => p.eliminated ? `💀 ${p.name}` : `${readyMap[uid] ? '✅' : '⏳'} ${p.name}`);
   statusEl.innerHTML = `준비: ${readyCount}/${totalCount}<br>${lines.join(' · ')}`;
   statusEl.style.display = 'block';
 }
@@ -5442,16 +5452,16 @@ function listenReady() {
     }
     db.ref('rooms/' + MP.roomCode + '/players').once('value').then(ps => {
       const players = ps.val() || {};
-      // 연결된 & 국가 선택 완료한 플레이어만 카운트 (끊긴 플레이어 제외)
+      // 연결된 & 국가 선택 & 탈락하지 않은 플레이어만 카운트
       const connected = Object.entries(players)
-        .filter(([uid, p]) => p.connected !== false && p.countryId);
+        .filter(([uid, p]) => p.connected !== false && p.countryId && !p.eliminated);
       const totalCount = connected.length;
       const readyCount = connected.filter(([uid]) => readyMap[uid]).length;
 
       updateReadyStatus(readyCount, totalCount, readyMap, players);
 
-      // 모두 준비됐으면 분기 진행 (호스트만)
-      if (MP.isHost && totalCount >= 2 && readyCount >= totalCount) {
+      // 생존 플레이어 모두 준비됐으면 분기 진행 (1인 이상, 호스트만)
+      if (MP.isHost && totalCount >= 1 && readyCount >= totalCount) {
         mpAdvanceTurn();
       }
     });
