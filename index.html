@@ -13,7 +13,7 @@ button{cursor:pointer;}
 /* NAV */
 #nav{background:var(--panel);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 18px;position:sticky;top:0;z-index:100;height:54px;gap:0;}
 .logo{font-size:17px;font-weight:800;color:var(--ac);margin-right:24px;white-space:nowrap;}.logo span{color:var(--go);}
-.ntab{padding:0 14px;height:54px;display:flex;align-items:center;border:none;background:transparent;color:var(--mu);font-size:13px;font-weight:600;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
+.ntab{padding:0 10px;height:54px;display:flex;align-items:center;border:none;background:transparent;color:var(--mu);font-size:12px;font-weight:600;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
 .ntab:hover{color:var(--tx);}.ntab.active{color:var(--ac);border-bottom-color:var(--ac);}
 #nr{margin-left:auto;display:flex;align-items:center;gap:16px;}
 .hud{display:flex;flex-direction:column;align-items:flex-end;}
@@ -690,8 +690,6 @@ button{cursor:pointer;}
       <div class="pnl"><div class="ph"><h3>🗺 국가 지도</h3></div><div class="pb" style="padding:14px;text-align:center;" id="map-container"></div></div>
       <div class="pnl"><div class="ph"><h3>🏆 GDP 순위</h3></div><div class="pb" id="lb"></div></div>
       <div class="pnl"><div class="ph"><h3>📊 내 국가 요약</h3></div><div class="pb" id="mysum"></div></div>
-      <div class="pnl"><div class="ph"><h3>💰 세금 현황</h3><span style="font-size:10px;color:var(--mu)">다음 분기 예상 세수</span></div><div class="pb" id="tax-panel"></div></div>
-      <div class="pnl"><div class="ph"><h3>🌍 기후·환경</h3><span style="font-size:10px;color:var(--mu)">오염↑→기온↑→재해</span></div><div class="pb" id="climate-dash"></div></div>
     </div>
   </div>
 </div>
@@ -3478,11 +3476,11 @@ function renderSpy(){
 }
 function renderAll(){
   renderHUD(); renderKPIs(); renderPolicies(); renderEvLog();
-  renderWarBanner(); renderCitizens(); renderMap(); renderLB(); renderMySummary(); renderTaxPanel();
+  renderWarBanner(); renderCitizens(); renderMap(); renderLB(); renderMySummary();
   renderTradeTabs(); renderTradeTable(); renderInventory(); renderFX(); renderTradeStats();
   renderStatePowers(); renderTechTree(); renderPortfolio(); renderInvestPanel();
   renderPendingProposals(); renderDCards(); renderRLog(); renderDLog(); renderRelOver();
-  renderClimate('climate-dash'); renderClimate('climate-pnl');
+  renderClimate('climate-pnl');
   renderDisBox(); renderElecBox(); renderSpy();
   if (MP.enabled) updateNextQBtn();
   if (MP.enabled) { updateMpHud(); renderMpPlayerPanel(); }
@@ -3609,27 +3607,28 @@ function renderLB(){
 }
 
 function renderMySummary(){
-  // MP에서 다른 플레이어 국가도 isPlayer=true이므로 G.pid로 정확한 순위 계산
   const p=P(),rank=[...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.id===G.pid)+1;
-  const mwars=AI().filter(c=>c.relation==='military_war').length;
+  const mwars=REAL_AI().filter(c=>c.relation==='military_war').length;
+  const twars=REAL_AI().filter(c=>c.relation==='tariff_war').length;
+  const _ftaN=REAL_AI().filter(c=>c.relation==='deal').length;
+  const _allyN=REAL_AI().filter(c=>c.relation==='alliance').length;
   const _ef=Math.max(0.3,1-p.unemp*0.04);
   const _gf=Math.max(0.1,Math.min(2.0,0.5+p.gro/8));
   const TR=G.taxRates||{income:1,corp:1,vat:1,prop:1,customs:1};
   const _taxEst=Math.round(p.gdp*0.030*_ef*TR.income)+Math.round(p.gdp*0.018*_gf*TR.corp)+Math.round(p.gdp*0.012*TR.vat)+Math.round(p.gdp*0.008*TR.prop)+Math.round(p.gdp*0.005*TR.customs);
-  const _ftaN=AI().filter(c=>c.relation==='deal').length;
-  const _allyN=AI().filter(c=>c.relation==='alliance').length;
   const _tradeEst=_ftaN*5+_allyN*10-(G.wg&&G.wg.member?100:0);
+  const activeInv=Object.entries(G.investCooldowns||{}).filter(([,v])=>v>0).length;
   document.getElementById('mysum').innerHTML=`<div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
-    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">현재 순위</span><strong style="color:var(--go)">${rank}위 / ${G.countries.length}개국</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">현재 순위</span><strong style="color:var(--go)">${rank}위 / ${G.countries.filter(c=>!c.isPlayer||c.id===G.pid).length}개국</strong></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">남은 분기</span><strong>${G.infiniteMode?'<span style="color:var(--go)">♾️ 무한</span>':`${G.maxTurns-G.turn}분기`}</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">🎯 정책 포인트</span><strong style="color:var(--wa)">${G.pp} PP</strong></div>
     <div style="border-top:1px solid var(--bd);margin:2px 0"></div>
     <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">💰 분기 세수 예상</span><strong style="color:var(--go)">+${_taxEst}억</strong></div>
-    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">무역 보너스(보조)</span><span style="color:${_tradeEst>=0?'var(--gr)':'var(--re)'}">${_tradeEst>=0?'+':''}${_tradeEst}억</span></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">무역·동맹 보너스</span><span style="color:${_tradeEst>=0?'var(--gr)':'var(--re)'}">${_tradeEst>=0?'+':''}${_tradeEst}억</span></div>
     <div style="border-top:1px solid var(--bd);margin:2px 0"></div>
-    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">FTA 국가</span><strong style="color:var(--gr)">${_ftaN}개국</strong></div>
-    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">관세전쟁</span><strong style="color:var(--wa)">${AI().filter(c=>c.relation==='tariff_war').length}개국</strong></div>
-    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">군사전쟁</span><strong style="color:var(--re)">${mwars}개국${mwars>0?' ⚔️':''}</strong></div>
-    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">시민 지지율</span><strong style="color:${appLvl(G.approval).color}">${G.approval}%</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">🤝 FTA 체결</span><strong style="color:var(--gr)">${_ftaN}개국</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">⚔️ 전쟁 중</span><strong style="color:${mwars>0?'var(--re)':'var(--mu)'}">${mwars}개국${twars>0?` · 관세전쟁 ${twars}개국`:''}</strong></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">🏗️ 진행 중 투자</span><strong style="color:var(--ac)">${activeInv}개 (쿨다운)</strong></div>
   </div>`;
 }
 
