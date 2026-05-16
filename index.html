@@ -5028,6 +5028,7 @@ function mpPushGameState() {
   if (!MP.isHost || !db) return;
   const snapshot = {
     turn: G.turn,
+    pp: 2, // 새 분기 시작 — 모든 클라이언트에 PP 2 지급
     countries: {},
     evLog: G.evLog.slice(0, 20),
     diploLog: G.diploLog.slice(0, 10),
@@ -5257,10 +5258,11 @@ function mpListenGameState() {
   MP._gameStateListener = MP._gameStateRef.on('value', snap => {
     const state = snap.val();
     if (!state) return;
-    // 클라이언트: 분기가 바뀌면 준비 상태 리셋
+    // 클라이언트: 분기가 바뀌면 준비 상태 및 정책 포인트 리셋
     if (!MP.isHost && state.turn !== undefined && state.turn !== _lastTurn && _lastTurn !== -1) {
       MP._myReady = false;
       updateNextQBtn();
+      G.pp = 2; // 분기 전환 시 PP 즉시 지급 (mpApplyGameState의 turn-increase 블록보다 앞서 적용)
     }
     _lastTurn = state.turn;
     mpApplyGameState(state);
@@ -5297,7 +5299,7 @@ function mpApplyGameState(state) {
   // 분기가 증가했으면 → 클라이언트 개인 상태 리셋
   if (state.turn && state.turn > prevTurn) {
     G.turn = state.turn;
-    G.pp = 2;
+    G.pp = state.pp !== undefined ? state.pp : 2;
     // 투자 쿨다운 감소 (클라이언트 독립)
     if (G.investCooldowns) Object.keys(G.investCooldowns).forEach(k => { if (G.investCooldowns[k] > 0) G.investCooldowns[k]--; });
     const _nqLabel = `Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)}`;
