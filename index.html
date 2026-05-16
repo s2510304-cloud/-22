@@ -1770,7 +1770,7 @@ function executeWarOrder(cid){
 // ══════════════════════════════════════════════════════
 function applyWarEffects(){
   const p=P();
-  AI().filter(c=>c.relation==='military_war').forEach(c=>{
+  REAL_AI().filter(c=>c.relation==='military_war').forEach(c=>{
     // 전투 명령 실행 (턴 시작 시)
     if(G.warOrders[c.id]){executeWarOrder(c.id);}
     c.warTurns=(c.warTurns||0)+1;
@@ -1877,7 +1877,7 @@ function applyWarEffects(){
 
 function checkEscalation(){
   const p=P();
-  AI().forEach(c=>{
+  REAL_AI().forEach(c=>{
     if(c.relation==='tension'){
       c.tensionTurns=(c.tensionTurns||0)+1;
       if(c.tensionTurns>=3&&Math.random()<0.25&&c.mood<-10){
@@ -1903,8 +1903,8 @@ function checkEscalation(){
             mpNotifyPlayer(c.playerUid,`⚔️ ${c.flag}${c.name}이 당신에게 군사전쟁을 선포했습니다!`);
           mpPushEvLog();
         }
-        // 제3국 반응 및 연합 참전
-        AI().filter(x=>x.id!==c.id&&x.relation!=='military_war').forEach(x=>{
+        // 제3국 반응 및 연합 참전 (실제 AI 국가만 — 다른 플레이어 국가 제외)
+        REAL_AI().filter(x=>x.id!==c.id&&x.relation!=='military_war').forEach(x=>{
           if(Math.random()<0.4){x.mood-=15;addReaction(x,'sanction');}
           // 적대적 3국이 전쟁에 편승 (mood<-50, 20% 확률)
           if(x.mood<-50&&x.relation!=='alliance'&&Math.random()<0.20){
@@ -1976,6 +1976,21 @@ function nextQ(){
   // 멀티플레이: 호스트는 전쟁 처리 결과를 evLog에 즉시 반영 (mpPushGameState()로 전체 동기화 전 선행)
   if(MP.enabled&&MP.isHost) mpPushEvLog();
 
+  // 탈락 호스트: AI 진행만 하고 개인 경제 처리는 건너뜀
+  if(MP.enabled && MP.isHost && G.gameOver){
+    G.totExp=0; G.totImp=0; G.tradeBought={}; G.tradeSold={};
+    G.countries.forEach(c=>GOODS.forEach(g=>{
+      c.prices[g.id]=Math.max(Math.round(g.base*.5),Math.round(c.prices[g.id]*(.95+Math.random()*.1)));
+    }));
+    applyActivePowers(); doClimate(); doTerror(); updateMarket();
+    const qLabel=`Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)}`;
+    const maxLabel=G.infiniteMode?'∞':`${G.maxTurns}분기`;
+    document.getElementById('qb').textContent=`${qLabel} / ${maxLabel}`;
+    if(!G.infiniteMode&&G.turn>=G.maxTurns)endGame('turns');
+    else renderAll();
+    return;
+  }
+
   const p=P();
   p.gro=Math.max(-5,Math.min(20,p.gro));
   p.gdp=Math.max(100,p.gdp*(1+p.gro/100));
@@ -2010,9 +2025,9 @@ function nextQ(){
   if(G.wgBanTurns>0) G.wgBanTurns--;
   checkWGExpulsion();
   // 동맹 군사 지원 (전쟁 중일 때)
-  const inWar=AI().some(c=>c.relation==='military_war');
+  const inWar=REAL_AI().some(c=>c.relation==='military_war');
   if(inWar){
-    const allyCount=AI().filter(c=>c.relation==='alliance').length;
+    const allyCount=REAL_AI().filter(c=>c.relation==='alliance').length;
     if(allyCount>0){p.mil=Math.min(p.mil+allyCount*5,999);if(G.turn%2===0)toast(`🛡 동맹 ${allyCount}개국 군사 지원 — 전력 +${allyCount*5}`,'good');}
   }
   G.totExp=0; G.totImp=0; G.tradeBought={}; G.tradeSold={};
@@ -5153,8 +5168,9 @@ function mpApplyGameState(state) {
       const c = G.countries ? G.countries.find(x => x.id === cid) : null;
       if (c) {
         // 공유 필드만 덮어씀 (inv, portfolio, techsOwned 등 개인 데이터 제외)
+        // relation/warTurns는 각 플레이어가 독립 관리 — 호스트 상태로 덮어쓰지 않음
         const shared = ['gdp','gro','mil','bud','debt','unemp','infl','bal',
-                        'mood','relation','warTurns','prices','isPlayer','playerUid','eliminated','wgMember'];
+                        'mood','prices','isPlayer','playerUid','eliminated','wgMember'];
         shared.forEach(k => { if (data[k] !== undefined) c[k] = data[k]; });
       }
     });
@@ -5221,6 +5237,10 @@ function mpApplyGameState(state) {
     if (!MP.isHost && !G.gameOver && p) {
       // WG 쿨다운 감소 (nextQ에서 호스트만 처리하므로 클라이언트도 동일하게)
       if (G.wg && G.wg.resCooldown > 0) G.wg.resCooldown--;
+      // 전쟁 효과 및 외교 에스컬레이션 (클라이언트 독립 외교 관리)
+      applyWarEffects();
+      if (G.gameOver) return;
+      checkEscalation();
       // 지지율 재계산 (초기값 50에 고정되는 버그 수정)
       recalcApproval();
       // 선거 체크 (nextQ에서만 실행되던 것 클라이언트에도 적용)
