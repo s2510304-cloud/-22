@@ -332,6 +332,19 @@ button{cursor:pointer;}
 .map-svg path{fill:var(--ac);}
 .sel-map{width:56px;height:40px;display:block;margin:4px auto 0;}
 .sel-map path{fill:var(--ac);}
+/* INVEST */
+.invest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;}
+.inv-card{background:var(--panel);border:2px solid var(--bd);border-radius:12px;padding:14px;transition:all .2s;}
+.inv-card.can-buy{border-color:var(--ac);cursor:default;}
+.inv-card.cooldown{opacity:.6;}
+.inv-icon{font-size:30px;margin-bottom:4px;}
+.inv-name{font-size:13px;font-weight:800;margin-bottom:2px;}
+.inv-desc{font-size:11px;color:var(--mu);margin-bottom:6px;line-height:1.4;}
+.inv-fx{font-size:11px;color:var(--gr);margin-bottom:6px;}
+.inv-cost{font-size:12px;font-weight:700;color:var(--go);margin-bottom:6px;}
+.inv-cd{font-size:11px;color:var(--wa);}
+.inv-btn{width:100%;padding:7px 0;background:var(--ac);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;}
+.inv-btn:disabled{background:var(--bd);color:var(--mu);cursor:not-allowed;}
 /* TECH TREE */
 .tech-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
 .tech-card{background:var(--panel);border:2px solid var(--bd);border-radius:10px;padding:12px;transition:all .2s;}
@@ -614,6 +627,7 @@ button{cursor:pointer;}
   <button class="ntab"        onclick="goPage('tax')">💰 세금</button>
   <button class="ntab"        onclick="goPage('spy')">🕵️ 첩보·환경</button>
   <button class="ntab"        onclick="goPage('tech')">🔬 기술</button>
+  <button class="ntab"        onclick="goPage('invest')">🏗️ 투자</button>
   <div id="nr">
     <div class="hud"><span class="lb">국가</span><span class="vl" id="hn">-</span></div>
     <div class="hud"><span class="lb">GDP</span><span class="vl" id="hg" style="color:var(--go)">-</span></div>
@@ -794,6 +808,19 @@ button{cursor:pointer;}
       <div class="pnl"><div class="ph"><h3>📋 작전 기록</h3></div><div class="pb"><div class="slog" id="spy-log"></div></div></div>
       <div class="pnl"><div class="ph"><h3>🌍 기후 상세</h3><span style="font-size:10px;color:var(--mu)">오염↑ → 기온↑ → 재해 위험↑</span></div><div class="pb" id="climate-pnl"></div></div>
       <div class="pnl"><div class="ph"><h3>🌪️ 재해 기록</h3></div><div class="pb"><div class="slog" id="dis-log"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-invest">
+  <div class="pnl">
+    <div class="ph">
+      <h3>🏗️ 국가 투자</h3>
+      <span style="font-size:11px;color:var(--mu)">예산을 집행해 국가를 발전시키세요</span>
+    </div>
+    <div class="pb">
+      <div id="invest-budget" style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--go)"></div>
+      <div class="invest-grid" id="invest-grid"></div>
     </div>
   </div>
 </div>
@@ -1040,6 +1067,77 @@ const REACT={
     '이 침략 행위를 용납할 수 없습니다.',
   ],
 };
+// ══════════════════════════════════════════════════════
+//  INVESTMENTS
+// ══════════════════════════════════════════════════════
+const INVESTMENTS=[
+  {id:'infra',   icon:'🏙️', name:'도시 인프라 확충',   desc:'도로·항만·전력망 대규모 건설',              cost:300, cooldown:4, fx:{gro:1.0, unemp:-1.0, approval:5}},
+  {id:'edu',     icon:'📚', name:'교육·연구 투자',      desc:'고등교육 예산 확대 및 R&D 지원',            cost:200, cooldown:3, fx:{gro:1.5, infl:-0.2}},
+  {id:'health',  icon:'🏥', name:'공공 의료 확충',      desc:'병원·의약품 지원으로 민심 안정',            cost:180, cooldown:3, fx:{approval:12, unemp:-0.3}},
+  {id:'mil',     icon:'⚔️', name:'군비 현대화',         desc:'첨단 무기 도입·병력 훈련 강화',            cost:400, cooldown:2, fx:{mil:25}},
+  {id:'energy',  icon:'⚡', name:'에너지 전환',         desc:'신재생에너지 투자로 물가·성장 개선',        cost:280, cooldown:4, fx:{gro:0.8, infl:-1.0, approval:4}},
+  {id:'welfare', icon:'🤝', name:'사회 복지 확대',      desc:'기본소득·실업급여 확충. 성장률 소폭 하락', cost:150, cooldown:2, fx:{approval:15, unemp:-0.8, gro:-0.2}},
+  {id:'startup', icon:'🚀', name:'스타트업 육성',       desc:'벤처 생태계 활성화 — 즉시 GDP +1.5%',      cost:220, cooldown:4, fx:{gro:1.8, gdpPct:1.5}},
+  {id:'export',  icon:'🚢', name:'수출 인프라 투자',    desc:'항만·물류 현대화로 무역수지 개선',          cost:160, cooldown:3, fx:{bal:40, gro:0.4}},
+  {id:'digital', icon:'💻', name:'디지털 전환',         desc:'IT 인프라·AI 투자로 산업 혁신',            cost:250, cooldown:4, fx:{gro:1.5, unemp:-0.5}},
+  {id:'tourism', icon:'🏖️', name:'관광 산업 육성',     desc:'문화·관광 홍보로 외화 유입 증가',           cost:130, cooldown:3, fx:{bal:25, approval:6, unemp:-0.4}},
+];
+
+function doInvest(id){
+  const inv=INVESTMENTS.find(x=>x.id===id);
+  if(!inv)return;
+  const p=P();
+  if(p.bud<inv.cost){toast('💸 예산 부족 — 더 많은 세수가 필요합니다','bad');return;}
+  if((G.investCooldowns[id]||0)>0){toast(`⏳ ${inv.name}: ${G.investCooldowns[id]}분기 후 재투자 가능`,'warn');return;}
+  p.bud-=inv.cost;
+  const fx=inv.fx;
+  if(fx.gro!==undefined)    p.gro=Math.max(-5,Math.min(20,p.gro+fx.gro));
+  if(fx.unemp!==undefined)  p.unemp=Math.max(0.5,Math.min(30,p.unemp+fx.unemp));
+  if(fx.infl!==undefined)   p.infl=Math.max(0,Math.min(15,p.infl+fx.infl));
+  if(fx.approval!==undefined)G.approval=Math.max(0,Math.min(100,G.approval+fx.approval));
+  if(fx.mil!==undefined)    p.mil=Math.max(1,Math.min(999,p.mil+fx.mil));
+  if(fx.bal!==undefined)    p.bal+=fx.bal;
+  if(fx.gdpPct!==undefined) p.gdp=Math.max(100,p.gdp*(1+fx.gdpPct/100));
+  G.investCooldowns[id]=inv.cooldown;
+  const fxDesc=Object.entries(fx).filter(([k])=>k!=='gdpPct').map(([k,v])=>{
+    const label={gro:'성장률',unemp:'실업률',infl:'물가',approval:'지지율',mil:'군사력',bal:'무역수지'}[k]||k;
+    return `${label} ${v>0?'+':''}${v}`;
+  }).concat(fx.gdpPct?[`즉시 GDP +${fx.gdpPct}%`]:[]).join(' · ');
+  G.evLog.unshift({text:`${inv.icon} [투자] ${inv.name} (-$${inv.cost}억) ${fxDesc}`,type:'info',turn:G.turn});
+  if(MP.enabled)mpSyncMyStats();
+  renderAll();
+  toast(`${inv.icon} ${inv.name} 투자 완료!`,'good');
+}
+
+function renderInvestPanel(){
+  const p=P();if(!p)return;
+  const budEl=document.getElementById('invest-budget');
+  const gridEl=document.getElementById('invest-grid');
+  if(!budEl||!gridEl)return;
+  budEl.textContent=`현재 재정: $${Math.round(p.bud)}억`;
+  budEl.style.color=p.bud>0?'var(--go)':'var(--re)';
+  gridEl.innerHTML=INVESTMENTS.map(inv=>{
+    const cd=(G.investCooldowns[inv.id]||0);
+    const canBuy=p.bud>=inv.cost&&cd===0;
+    const fxLines=Object.entries(inv.fx).map(([k,v])=>{
+      if(k==='gdpPct')return `즉시 GDP +${v}%`;
+      const label={gro:'성장률',unemp:'실업률',infl:'물가',approval:'지지율',mil:'군사력',bal:'무역수지'}[k]||k;
+      return `${label} ${v>0?'+':''}${v}`;
+    }).join(' · ');
+    return `<div class="inv-card ${canBuy?'can-buy':''} ${cd>0?'cooldown':''}">
+      <div class="inv-icon">${inv.icon}</div>
+      <div class="inv-name">${inv.name}</div>
+      <div class="inv-desc">${inv.desc}</div>
+      <div class="inv-fx">${fxLines}</div>
+      <div class="inv-cost">💰 $${inv.cost}억</div>
+      ${cd>0?`<div class="inv-cd">⏳ ${cd}분기 후 재투자 가능</div>`:'<div class="inv-cd" style="color:var(--mu)">쿨다운: 없음</div>'}
+      <button class="inv-btn" onclick="doInvest('${inv.id}')" ${(!canBuy&&cd===0)||cd>0?'disabled':''}>
+        ${cd>0?`⏳ 쿨다운 (${cd})`:'투자 실행'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
 const POLS=[
   {id:'rate_up',icon:'📈',name:'금리 인상',  desc:'물가 억제, 성장 둔화',cost:1,fx:{infl:-.6,gro:-.3,bud:+20},appFx:-3},
   {id:'rate_dn',icon:'📉',name:'금리 인하',  desc:'경기 부양, 물가 상승',cost:1,fx:{infl:+.4,gro:+.5,bud:-30},appFx:+4},
@@ -1390,6 +1488,7 @@ function initGame(pid,mode){
     civilWar:{active:false,stage:0,turns:0},
     terrorCooldown:0,
     powerCooldowns:{},
+    investCooldowns:{},
     activePowers:[],
     techsOwned:new Set(),
     portfolio:{},
@@ -1952,6 +2051,8 @@ function nextQ(){
   }
   if(G.turn>=G.maxTurns){endGame('turns');return;}
   G.turn++; G.pp=2;
+  // 투자 쿨다운 감소
+  if(G.investCooldowns)Object.keys(G.investCooldowns).forEach(k=>{if(G.investCooldowns[k]>0)G.investCooldowns[k]--;});
 
   // 경제 이벤트
   if(Math.random()<.6){
@@ -3379,7 +3480,7 @@ function renderAll(){
   renderHUD(); renderKPIs(); renderPolicies(); renderEvLog();
   renderWarBanner(); renderCitizens(); renderMap(); renderLB(); renderMySummary(); renderTaxPanel();
   renderTradeTabs(); renderTradeTable(); renderInventory(); renderFX(); renderTradeStats();
-  renderStatePowers(); renderTechTree(); renderPortfolio();
+  renderStatePowers(); renderTechTree(); renderPortfolio(); renderInvestPanel();
   renderPendingProposals(); renderDCards(); renderRLog(); renderDLog(); renderRelOver();
   renderClimate('climate-dash'); renderClimate('climate-pnl');
   renderDisBox(); renderElecBox(); renderSpy();
@@ -4098,7 +4199,7 @@ function goPage(n){
   document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
   const pageEl=document.getElementById('page-'+n);
   if(pageEl)pageEl.classList.add('active');
-  const tabIdx=['dash','trade','diplo','tax','spy','tech'].indexOf(n);
+  const tabIdx=['dash','trade','diplo','tax','spy','tech','invest'].indexOf(n);
   const tabs=document.querySelectorAll('.ntab');
   if(tabIdx>=0&&tabs[tabIdx])tabs[tabIdx].classList.add('active');
   if(n==='trade'){renderTradeTabs();renderTradeTable();renderInventory();renderFX();renderTradeStats();}
@@ -4106,6 +4207,7 @@ function goPage(n){
   if(n==='tax'){renderTaxPage();}
   if(n==='spy'){renderSpy();renderClimate('climate-pnl');}
   if(n==='tech'){renderTechTree();}
+  if(n==='invest'){renderInvestPanel();}
 }
 let _tt;
 function toast(msg,type='info'){
@@ -5186,6 +5288,8 @@ function mpApplyGameState(state) {
   if (state.turn && state.turn > prevTurn) {
     G.turn = state.turn;
     G.pp = 2;
+    // 투자 쿨다운 감소 (클라이언트 독립)
+    if (G.investCooldowns) Object.keys(G.investCooldowns).forEach(k => { if (G.investCooldowns[k] > 0) G.investCooldowns[k]--; });
     const _nqLabel = `Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)}`;
     showNextQOverlay(_nqLabel, G.pp);
     const p = P();
