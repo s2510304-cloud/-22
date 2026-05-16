@@ -2068,12 +2068,12 @@ function nextQ(){
   recalcApproval();
   if(G.turn>=G.election.next&&!G.gameOver){doElection();if(G.gameOver&&!(MP.enabled&&MP.isHost))return;}
   if(G.approval<=10&&!G.gameOver){endGame('protest');if(!(MP.enabled&&MP.isHost))return;}
-  if(G.approval<=20)toast(`⚠️ 지지율 ${G.approval}%! 내전·탄핵 위기!`,'warn');
+  if(G.approval<=20&&!G.gameOver)toast(`⚠️ 지지율 ${G.approval}%! 내전·탄핵 위기!`,'warn');
 
   const qLabel=`Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)}`;
   const maxLabel=G.infiniteMode?'∞':`${G.maxTurns}분기`;
   document.getElementById('qb').textContent=`${qLabel} / ${maxLabel}`;
-  showNextQOverlay(qLabel, G.pp);
+  if(!(MP.enabled&&MP.isHost&&G.gameOver)) showNextQOverlay(qLabel, G.pp); // 사망한 호스트는 오버레이 생략
   if(!G.infiniteMode&&G.turn>=G.maxTurns)endGame('turns');
   else{renderAll();}
   // 멀티플레이: 클라이언트는 분기 후 내 stats 동기화 (호스트는 mpPushGameState()로 전체 동기화)
@@ -3991,6 +3991,7 @@ function endGame(reason){
   if (MP.enabled && reason !== 'turns') {
     G.gameOver = true; // 내 입력은 막음
     const p = P();
+    if (p) p.eliminated = true; // 탈락 마킹 (mpPushGameState로 클라이언트에 동기화됨)
     const rank = [...G.countries].sort((a,b)=>b.gdp-a.gdp).findIndex(c=>c.isPlayer&&c.playerUid===MP.uid)+1;
     toast(`💀 게임오버 (${reason}) — 관전 모드 전환. 순위: ${rank}위`, 'bad');
     G.evLog.unshift({text:`💀 ${p.flag}${p.name} (${MP.playerName}) 게임오버 — 관전 모드로 전환됩니다.`, type:'bad', turn:G.turn});
@@ -4912,6 +4913,7 @@ function mpPushGameState() {
       mood: c.mood, relation: c.relation, warTurns: c.warTurns || 0,
       prices: c.prices,
       isPlayer: c.isPlayer || false, playerUid: c.playerUid || null,
+      eliminated: c.eliminated || false,
     };
   });
   db.ref('rooms/' + MP.roomCode + '/gameState').set(snapshot).catch(err => {
@@ -5200,6 +5202,13 @@ function mpApplyGameState(state) {
     const qLabel = `Q${((G.turn-1)%4)+1} Y${Math.ceil(G.turn/4)}`;
     const maxLabel = G.infiniteMode ? '∞' : `${G.maxTurns}분기`;
     document.getElementById('qb').textContent = `${qLabel} / ${maxLabel}`;
+    // 클라이언트: 지지율 재계산 (nextQ가 클라이언트에서 실행 안 되므로 여기서 처리)
+    // recalcApproval()이 한 번도 호출 안 되면 지지율이 초기값 50에 고정돼 탄핵 조건이 트리거 안 됨
+    if (!MP.isHost && !G.gameOver && p) {
+      recalcApproval();
+      if (G.approval <= 10) { endGame('protest'); return; }
+      if (G.approval <= 20) toast(`⚠️ 지지율 ${G.approval}%! 내전·탄핵 위기!`, 'warn');
+    }
     // 분기 증가 후 내 스텟 동기화
     setTimeout(() => { if (MP.enabled && !MP.isHost) mpSyncMyStats(); }, 500);
   } else {
@@ -5231,6 +5240,14 @@ function updateNextQBtn() {
   if (!MP.enabled) {
     btn.textContent = '▶ 다음 분기';
     btn.style.background = '';
+    return;
+  }
+  // 호스트 게임오버: 탈락 후에도 분기 진행 가능하도록 버튼 유지
+  if (G.gameOver && MP.isHost) {
+    btn.textContent = '💀관전▶';
+    btn.style.background = 'var(--re)';
+    btn.style.color = '#fff';
+    btn.disabled = false;
     return;
   }
   if (MP._myReady) {
