@@ -1837,6 +1837,7 @@ function applyWarEffects(){
     }
     // ─────────────────────────────────────────────────
     // 승리 조건: 전쟁 3턴 이상 + GDP 격차
+    // return으로 패전 조건과 분리 — 같은 분기에 승리+패전 동시 발동 방지
     if(c.warTurns>=3&&(p.mil>c.mil*1.3||p.gdp>c.gdp*1.5)&&Math.random()<0.5){
       c.relation='neutral'; c.tariff=20; c.mood=-80;
       addReaction(c,'war_won');
@@ -1851,13 +1852,15 @@ function applyWarEffects(){
           mpNotifyPlayer(c.playerUid,`🏳️ ${P().flag}${P().name}에 항복했습니다. 전쟁이 종료되었습니다.`);
         mpPushEvLog();mpPushDiploLog();mpSyncMyStats();
       }
+      return; // 패전 조건 체크 건너뜀
     }
     // 패전 조건: 지지율 급락 또는 GDP 역전
+    // return으로 복수 전쟁 중 패전 중복 발동 방지
     if(G.approval<20||(c.warTurns>=4&&p.gdp<c.gdp*0.5)){
       c.relation='neutral'; c.tariff=30; c.mood=-20;
       addReaction(c,'war_lost');
       logDiplo(`😔 ${c.flag} ${c.name}에 패배. 항복 처리.`,'bad');
-      p.bud-=400; G.approval=Math.max(0,G.approval-20);
+      p.bud=Math.max(-9999,p.bud-400); G.approval=Math.max(0,G.approval-20);
       toast(`💔 ${c.flag} ${c.name}에 패배...`,'bad');
       showWarDefeat(c);
       // 멀티플레이: 전쟁 패배 후 상대 국가 stats 및 내 stats 동기화
@@ -1867,6 +1870,7 @@ function applyWarEffects(){
           mpNotifyPlayer(c.playerUid,`🎖 ${P().flag}${P().name}이 항복했습니다. 전쟁이 종료되었습니다.`);
         mpPushEvLog();mpPushDiploLog();mpSyncMyStats();
       }
+      return; // 다음 전쟁도 같은 분기에 패전 처리되지 않도록
     }
   });
 }
@@ -1922,12 +1926,14 @@ function checkEscalation(){
     // AI 자체적 무드 변화
     c.mood+=( Math.random()-.55)*3;
     c.mood=Math.max(-100,Math.min(100,c.mood));
-    // 기분 좋은 AI가 협정 제안
+    // 기분 좋은 AI가 FTA 제안 (자동 체결 → pendingProposals로 플레이어 동의 필요)
     if(c.relation==='neutral'&&c.mood>50&&Math.random()<0.15){
-      c.relation='deal'; c.tariff=0;
-      addReaction(c,'fta','먼저 자유무역협정을 제안하고 싶습니다!');
-      logDiplo(`${c.flag} ${c.name}이 FTA를 제안해왔습니다!`,'info');
-      toast(`${c.flag} ${c.name}이 FTA를 제안!`,'info');
+      if(!G.pendingProposals.find(x=>x.cid===c.id&&x.type==='fta')){
+        G.pendingProposals.push({type:'fta',cid:c.id,turn:G.turn});
+        addReaction(c,'fta_proposal','먼저 자유무역협정을 제안하고 싶습니다!');
+        logDiplo(`📨 ${c.flag} ${c.name}이 FTA를 제안해왔습니다!`,'info');
+        toast(`📨 ${c.flag} ${c.name}이 FTA를 제안!`,'info');
+      }
     }
   });
 }
@@ -5028,7 +5034,7 @@ function updateMpHud() {
     return (c.flag || '') + ' ' + c.name + (isMe ? ' (나)' : '');
   });
   document.getElementById('mpHudPlayers').textContent = names.join(' · ');
-  document.getElementById('mpHudTurn').textContent = '분기 ' + G.turn + '/' + G.maxTurns;
+  document.getElementById('mpHudTurn').textContent = '분기 ' + G.turn + '/' + (G.infiniteMode ? '∞' : G.maxTurns);
 }
 
 // ── 다른 플레이어 현황 패널 ──────────────────────────────────
